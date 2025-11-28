@@ -1,12 +1,5 @@
 FROM fedora:latest
 
-ARG claude_user=claude
-ENV CLAUDE_USER=$claude_user
-
-ARG claude_home_dir=/home/$claude_user
-
-RUN useradd -d "$claude_home_dir" "$claude_user"
-
 # Remove option that says "don't install documentation"
 RUN sed -E -i '/^tsflags\s*=\s*nodocs\s*$/d' /etc/dnf/dnf.conf
 
@@ -27,7 +20,7 @@ RUN dnf -y --refresh install \
     && dnf clean all
 
 # Packages taken from the devcontainer
-# https://github.com/anthropics/claude-code/blob/main/.devcontainer/Dockerfile
+# https://github.com/anthropics/llm-code/blob/main/.devcontainer/Dockerfile
 RUN dnf -y --refresh install \
     gh \
     git \
@@ -56,18 +49,26 @@ RUN dnf -y --refresh install \
     zoxide \
     && dnf clean all
 
-USER $claude_user
+ARG LLM_USER
+ARG LLM_HOME_DIR
 
-ENV NPM_CONFIG_PREFIX=$claude_home_dir/.local
-RUN install -d "$claude_home_dir/.local"
+ENV LLM_USER=$LLM_USER
+ENV LLM_HOME_DIR=$LLM_HOME_DIR
+
+RUN useradd -d "$LLM_HOME_DIR" "$LLM_USER"
+
+USER $LLM_USER
+
+ENV NPM_CONFIG_PREFIX=$LLM_HOME_DIR/.local
+RUN install -d "$LLM_HOME_DIR/.local"
 RUN npm install -g @anthropic-ai/claude-code@latest
 
 USER root
 
-RUN install -o "$claude_user" -g "$claude_user" -d /workspace
+RUN install -o "$LLM_USER" -g "$LLM_USER" -d /workspace
 
-COPY --chown=root:root --chmod=600 claude_sudoers /etc/sudoers.d/
-RUN sed -E -i "s/^claude\\s/$claude_user /" /etc/sudoers.d/claude_sudoers
+COPY --chown=root:root --chmod=600 llm_sudoers /etc/sudoers.d/
+RUN sed -E -i "s/^llm\\s/$LLM_USER /" /etc/sudoers.d/llm_sudoers
 
 COPY --chown=root:root --chmod=0755 entrypoint.sh /
 RUN install -o root -g root -m 700 -d /root

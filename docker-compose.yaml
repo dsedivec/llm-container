@@ -1,10 +1,26 @@
+volumes:
+  claude_config:
+
 services:
-  claude:
-    build: .
-    image: claude
+  llm:
+    build:
+      context: .
+      args:
+        - LLM_USER=${LLM_USER}
+        - LLM_HOME_DIR=/home/${LLM_USER}
+    image: llm
     pull_policy: build
     cap_drop: ["ALL"]
-    cap_add: ["NET_ADMIN", "SETPCAP", "SETUID", "SETGID", "AUDIT_WRITE", "DAC_OVERRIDE"]
+    cap_add:
+      - NET_ADMIN
+      - SETPCAP
+      - SETUID
+      - SETGID
+      - AUDIT_WRITE
+      - DAC_OVERRIDE
+      - CHOWN
     # Can't have this if you want sudo to work.
     # security_opt: ["no-new-privileges:true"]
     dns: ["1.1.1.1", "9.9.9.9"]
+    volumes:
+      - "claude_config:/home/${LLM_USER}/.claude"

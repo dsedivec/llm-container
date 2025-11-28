@@ -1,0 +1,2 @@
+#llm ALL = (ALL) NOPASSWD: /usr/sbin/dnf
+llm ALL = (ALL) NOPASSWD: ALL
