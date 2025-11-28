@@ -1,0 +1,2 @@
+#claude ALL = (ALL) NOPASSWD: /usr/sbin/dnf
+claude ALL = (ALL) NOPASSWD: ALL

@@ -1,0 +1,10 @@
+services:
+  claude:
+    build: .
+    image: claude
+    pull_policy: build
+    cap_drop: ["ALL"]
+    cap_add: ["NET_ADMIN", "SETPCAP", "SETUID", "SETGID", "AUDIT_WRITE", "DAC_OVERRIDE"]
+    # Can't have this if you want sudo to work.
+    # security_opt: ["no-new-privileges:true"]
+    dns: ["1.1.1.1", "9.9.9.9"]
