@@ -26,6 +26,8 @@ services:
       - HTTP_PROXY=http://tinyproxy:8888
       - HTTPS_PROXY=http://tinyproxy:8888
       - NO_PROXY=localhost,127.0.0.1
+      - TERM=xterm-256color
+      - COLORTERM=truecolor
     depends_on:
       - tinyproxy
     volumes:
