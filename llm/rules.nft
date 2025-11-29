@@ -58,6 +58,8 @@ table inet llm_egress {
         oif lo accept
         ip daddr @allowed_ipv4 counter accept
         ip6 daddr @allowed_ipv6 counter accept
+        # Allow connections to tinyproxy on Docker network
+        ip daddr 172.16.0.0/12 tcp dport 8888 counter accept
         # Faster failures
         meta l4proto {tcp, udp} counter reject
     }

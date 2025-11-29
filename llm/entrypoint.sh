@@ -12,11 +12,11 @@ python3 ./add_ip_ranges_to_nft_sets.py llm_egress allowed_ipv4 allowed_ipv6 \
 
 # Make sure network protections are working.
 set +e
-curl https://www.google.com &>/dev/null
+curl https://www.google.com >/dev/null
 result=$?
 set -e
-if [ "$result" != 7 ]; then
-     echo "We should not be able to get to Google" >&2
+if [ "$result" != 56 ]; then
+     echo "We should not be able to get to Google through tinyproxy" >&2
      exit 1
 fi
 
