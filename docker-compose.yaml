@@ -7,7 +7,7 @@ services:
       context: ./llm
       args:
         - LLM_USER=${LLM_USER}
-        - LLM_HOME_DIR=/home/${LLM_USER}
+        - LLM_HOME_DIR=${LLM_HOME_DIR}
     image: llm
     pull_policy: build
     cap_drop: ["ALL"]
@@ -26,12 +26,13 @@ services:
       - HTTP_PROXY=http://tinyproxy:8888
       - HTTPS_PROXY=http://tinyproxy:8888
       - NO_PROXY=localhost,127.0.0.1
+      - CLAUDE_CONFIG_DIR=${LLM_HOME_DIR}/.claude_persistent
       - TERM=xterm-256color
       - COLORTERM=truecolor
     depends_on:
       - tinyproxy
     volumes:
-      - "claude_config:/home/${LLM_USER}/.claude"
+      - "claude_config:${LLM_HOME_DIR}/.claude_persistent"
 
   tinyproxy:
     build: ./tinyproxy
