@@ -40,3 +40,5 @@ services:
     build: ./tinyproxy
     image: tinyproxy
     pull_policy: build
+    volumes:
+      - "./tinyproxy/allowlist:/etc/tinyproxy/allowlist:ro"
