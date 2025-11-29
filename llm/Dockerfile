@@ -71,7 +71,6 @@ COPY --chown=root:root --chmod=600 llm_sudoers /etc/sudoers.d/
 RUN sed -E -i "s/^llm\\s/$LLM_USER /" /etc/sudoers.d/llm_sudoers
 
 COPY --chown=root:root --chmod=0755 entrypoint.sh /
-RUN install -o root -g root -m 700 -d /root
 COPY rules.nft add_ip_ranges_to_nft_sets.py /root/
 
 ENTRYPOINT ["/entrypoint.sh"]
