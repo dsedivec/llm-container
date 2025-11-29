@@ -61,7 +61,9 @@ USER $LLM_USER
 
 ENV NPM_CONFIG_PREFIX=$LLM_HOME_DIR/.local
 RUN install -d "$LLM_HOME_DIR/.local"
+
 RUN npm install -g @anthropic-ai/claude-code@latest
+RUN npm install -g @openai/codex
 
 USER root
 

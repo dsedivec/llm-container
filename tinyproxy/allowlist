@@ -2,6 +2,11 @@
 api.anthropic.com
 anthropic.com
 
+# OpenAI
+api.openai.com
+auth.openai.com
+chatgpt.com
+
 # GitHub
 github.com
 api.github.com

@@ -1,5 +1,6 @@
 volumes:
   claude_config:
+  codex_config:
 
 services:
   llm:
@@ -33,6 +34,7 @@ services:
       - tinyproxy
     volumes:
       - "claude_config:${LLM_HOME_DIR}/.claude_persistent"
+      - "codex_config:${LLM_HOME_DIR}/.codex"
 
   tinyproxy:
     build: ./tinyproxy
