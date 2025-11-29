@@ -12,13 +12,22 @@ python3 ./add_ip_ranges_to_nft_sets.py llm_egress allowed_ipv4 allowed_ipv6 \
 
 # Make sure network protections are working.
 set +e
+
 curl https://www.google.com >/dev/null
 result=$?
-set -e
 if [ "$result" != 56 ]; then
      echo "We should not be able to get to Google through tinyproxy" >&2
      exit 1
 fi
+
+curl --noproxy '*' https://www.google.com >/dev/null
+result=$?
+if [ "$result" != 7 ]; then
+     echo "We should not be able to get to Google directly" >&2
+     exit 1
+fi
+
+set -e
 
 # Make llm's own files readable/writable by llm.
 chown -R "$LLM_USER:$LLM_USER" "$LLM_HOME_DIR"
