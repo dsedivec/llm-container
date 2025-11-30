@@ -2,13 +2,7 @@
 
 set -xeuo pipefail
 
-cat /etc/sudoers.d/llm_sudoers
-cd /root
-curl -Lo github_meta.json https://api.github.com/meta
-jq -r '(.api + .git + .web)[]' github_meta.json > github_ips
-nft -f ./rules.nft
-python3 ./add_ip_ranges_to_nft_sets.py llm_egress allowed_ipv4 allowed_ipv6 \
-        < github_ips
+nft -f /root/rules.nft
 
 # Make sure network protections are working.
 set +e
