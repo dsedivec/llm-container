@@ -1,2 +1,3 @@
+#llm ALL = (ALL) NOPASSWD: ALL
 #llm ALL = (ALL) NOPASSWD: /usr/sbin/dnf
-llm ALL = (ALL) NOPASSWD: ALL
+llm ALL = (ALL) NOPASSWD: /usr/sbin/capsh --print
