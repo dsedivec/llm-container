@@ -22,7 +22,7 @@ def test_volume_add_creates_profile(tmp_path: Path, monkeypatch) -> None:
     assert result.exit_code == 0
     assert "Creating profile dev" in result.output
 
-    profile_file = config_base / "llmbox" / "dev.yaml"
+    profile_file = config_base / "llmbox" / "profiles" / "dev.yaml"
     assert profile_file.exists()
     saved = yaml.safe_load(profile_file.read_text())
     assert saved["volumes"][0].startswith(str(host_path))

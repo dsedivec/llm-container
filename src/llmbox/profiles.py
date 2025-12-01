@@ -52,19 +52,16 @@ def validate_profile_name(name: str) -> str:
 class ProfileManager:
     def __init__(self, config_dir: Path):
         self.config_dir = config_dir
+        self.profiles_dir = config_dir / "profiles"
 
     def _profile_path(self, profile: str) -> Path:
         validate_profile_name(profile)
-        return self.config_dir / f"{profile}.yaml"
+        return self.profiles_dir / f"{profile}.yaml"
 
     def list_profiles(self) -> list[str]:
-        if not self.config_dir.exists():
+        if not self.profiles_dir.exists():
             return []
-        profiles = [
-            path.stem
-            for path in self.config_dir.glob("*.yaml")
-            if path.name != "config.yaml" and path.is_file()
-        ]
+        profiles = [path.stem for path in self.profiles_dir.glob("*.yaml") if path.is_file()]
         return sorted(profiles)
 
     def exists(self, profile: str) -> bool:
@@ -81,7 +78,7 @@ class ProfileManager:
         return ProfileData.model_validate(loaded)
 
     def save(self, profile: str, data: ProfileData) -> None:
-        self.config_dir.mkdir(parents=True, exist_ok=True)
+        self.profiles_dir.mkdir(parents=True, exist_ok=True)
         path = self._profile_path(profile)
         path.write_text(yaml.safe_dump(data.model_dump(), sort_keys=True))
 
@@ -91,7 +88,8 @@ class ProfileManager:
             raise FileExistsError(f"Profile {profile} already exists")
 
         data = ProfileData()
-        self.save(profile, data)
+        self.profiles_dir.mkdir(parents=True, exist_ok=True)
+        path.write_text(yaml.safe_dump(data.model_dump(), sort_keys=True))
         return data
 
     def ensure(self, profile: str) -> tuple[ProfileData, bool]:
