@@ -1,34 +1,37 @@
 # Repository Guidelines
 
-## Project Structure & Module Organization
-- Root: `docker-compose.yaml` orchestrates the Claude Code container (`llm`) and the local HTTP proxy (`tinyproxy`).
-- `llm/`: Fedora-based image and network lock-down assets — `Dockerfile`, `entrypoint.sh`, nftables rules (`rules.nft`), and helper `add_ip_ranges_to_nft_sets.py`.
-- `tinyproxy/`: Minimal proxy image (`Dockerfile`, `tinyproxy.conf`, `allowlist`) used to funnel outbound requests through filtered destinations.
-- Volumes: `claude_config` and `codex_config` persist Claude/Codex settings inside the container.
+## Overview & Layout
+- Single-container setup: build from `llm/` and run via `run_container.sh`; no docker-compose or proxy sidecar.
+- Key files: `llm/Dockerfile` (installs Claude Code, nftables, tinyproxy), `llm/entrypoint.sh` (nftables + proxy bootstrap), `llm/rules.nft` (egress policy), `llm/tinyproxy.conf` (blocklist proxy), `llm/blocklist` (regexes), `llm/llm_sudoers` (restricted sudo).
+- Volumes: `claude_config` -> `/home/llm/.claude_persistent`, `codex_config` -> `/home/llm/.codex` for persisted settings.
 
-## Build, Test, and Development Commands
-- `docker-compose build`: Build both images (llm and tinyproxy) with the provided args/env.
-- `docker-compose up -d`: Start the stack in detached mode.
-- `docker-compose logs -f llm`: Tail the llm container logs for startup and network checks.
-- `docker-compose exec llm bash`: Enter the llm container as the unprivileged user for development.
-- Network validation (inside the container): `curl https://www.google.com` should fail; `curl https://api.github.com` should succeed.
+## Build & Run
+- Build image: `docker build -t llm --build-arg LLM_USER=llm --build-arg LLM_HOME_DIR=/home/llm llm/`.
+- Run (caps + proxy env wired in): `./run_container.sh [cmd]`; defaults to shell. Proxy listens on `127.0.0.1:8888` with `HTTP_PROXY`/`HTTPS_PROXY` set; DNS pinned to `1.1.1.1` and `9.9.9.9`.
+- Logs: tinyproxy logs to `/var/log/tinyproxy/tinyproxy.log` inside the container.
 
-## Coding Style & Naming Conventions
-- Shell: Prefer `bash` with `set -euo pipefail` (see `entrypoint.sh`); keep functions small and comment only non-obvious logic.
-- Python: Match `add_ip_ranges_to_nft_sets.py` (stdlib only, typed variables optional, clear argparse usage).
-- nftables: Follow existing table/set names (`llm_egress`, `allowed_ipv4`, `allowed_ipv6`); keep rules drop-by-default.
-- File naming: kebab-case for configs, snake_case for scripts, lower-case Dockerfile directories.
+## Network Model & Key Rules
+- Default-allow via tinyproxy with blocklist filtering; direct IP CONNECTs blocked by regexes in `llm/blocklist`.
+- nftables (`llm/rules.nft`): drop-by-default; only `tinyproxy` UID may reach TCP 80/443; DNS allowed to public resolvers; private networks rejected; Docker subnet detected at runtime and added to `allowed_ipv4`.
+- `llm/entrypoint.sh` loads rules, inserts the detected subnet, starts tinyproxy, and drops privileges with `setpriv` to the unprivileged `LLM_USER`.
 
-## Testing Guidelines
-- No automated test suite; rely on manual validation.
-- After rule or proxy changes, rebuild and run `curl` checks as above to confirm allowed vs blocked destinations.
-- For Python utility changes, feed sample CIDRs: `printf '192.0.2.0/24\n2001:db8::/32\n' | python3 add_ip_ranges_to_nft_sets.py llm_egress allowed_ipv4 allowed_ipv6 --nft /usr/sbin/nft`.
+## Coding Style & Conventions
+- Shell: use `bash` with `set -euo pipefail` like `llm/entrypoint.sh`; keep logic small and comment only non-obvious steps.
+- Firewall: preserve table/set names (`llm_egress`, `allowed_ipv4`, `private_ipv4_networks`, `dns_servers`) and drop-first posture; ensure tinyproxy remains the sole outbound path.
+- Configs/scripts: keep kebab-case for configs, lower-case Dockerfile dirs; match existing tinyproxy/nftables formatting.
 
-## Commit & Pull Request Guidelines
-- Commits: Use imperative, present-tense subjects (e.g., “Harden nftables defaults”, “Clarify proxy allowlist”). Group related changes; avoid mixed concerns.
-- PRs: Include a short summary, rationale, and testing notes (commands run and results). Link any related issues. If changing network rules, describe the expected allowed/blocked destinations and how you verified them. Attach config diffs or log snippets when helpful.
+## Manual Checks (inside container)
+- `curl https://www.google.com` should succeed via proxy.
+- `curl --noproxy '*' https://www.google.com` should fail (direct blocked).
+- `curl https://1.2.3.4` should fail (IP blocked by proxy).
+- `curl http://192.168.1.1` should fail (private range blocked by nftables).
+- `dig example.com` should resolve; audit via `/var/log/tinyproxy/tinyproxy.log`.
+
+## Commit & PR Guidelines
+- Commit subjects imperative/present (e.g., “Tighten proxy blocklist”). Group related changes only.
+- PRs: note rationale and manual checks (commands + outcomes). If touching network rules, spell out expected allow/deny behavior and how you validated it; include relevant config/log snippets when useful.
 
 ## Security & Configuration Tips
-- Keep the allowlist minimal; prefer adding CIDR ranges via the Python helper rather than inlining many rules.
-- If adding outbound destinations, justify the need and ensure Google (or other broad internet hosts) remains blocked.
-- Secrets should stay outside the repo; use environment variables or Docker secrets if needed.
+- Keep the blocklist focused; add domains/IP regexes only when needed to avoid over-blocking.
+- Do not loosen nftables/tinyproxy so processes can bypass the proxy; retain UID-based egress restriction and DNS pinning.
+- Secrets stay outside the repo; prefer env vars or Docker secrets.
