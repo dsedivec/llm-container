@@ -46,8 +46,7 @@ if [ "$result" == 0 ]; then
 fi
 set -e
 
-# Make llm's own files readable/writable by llm.
-chown -R "$LLM_USER:$LLM_USER" "$LLM_HOME_DIR"
+chown -hR "$LLM_USER:$LLM_USER" "$LLM_HOME_DIR"
 
 # runuser sets up the environment for us.  Otherwise we'd have to
 # bootstrap stuff like HOME ourselves.
