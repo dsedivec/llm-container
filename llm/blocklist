@@ -1,0 +1,13 @@
+### Block direct IP connections (force DNS usage)
+
+# Block anything that's just numbers and dots (IPv4)
+^[0-9.]+$
+# Old hex IPv4 addresses
+^0x[0-9a-f]+$
+
+# Block IPv6 addresses - anything with colons, brackets, or percent signs
+[\[\]%:]
+
+
+### Blocked domains
+# (add as needed)

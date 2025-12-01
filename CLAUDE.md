@@ -4,39 +4,45 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-This project provides a security-hardened Docker container for running Claude Code with network isolation. The container restricts outbound network access to only essential services (Anthropic API, GitHub, and DNS servers) using nftables firewall rules.
+This project provides a security-hardened Docker container for running Claude Code with network isolation. The container uses a default-allow networking model with blocklist filtering, audit logging, and UID-based firewall rules to prevent direct connections.
 
 ## Architecture
 
 ### Core Components
 
-- **llm/Dockerfile**: Fedora-based container with Claude Code, network tools (nftables), and development utilities
+- **llm/Dockerfile**: Fedora-based container with Claude Code, tinyproxy, nftables, and development utilities
 - **llm/entrypoint.sh**: Container initialization script that:
-  1. Configures nftables firewall rules
-  2. Validates network isolation (ensures Google is unreachable both via proxy and directly)
-  3. Drops privileges and launches user shell
-- **llm/rules.nft**: nftables configuration defining allowed IP ranges and drop-by-default policy
-- **tinyproxy/**: HTTP proxy sidecar that allowlists specific domains (Anthropic API, GitHub, npm, etc.)
+  1. Creates tinyproxy log directory
+  2. Detects Docker subnet and configures nftables
+  3. Starts tinyproxy
+  4. Drops privileges and launches user shell
+- **llm/rules.nft**: nftables configuration with UID-based rules - only tinyproxy can make outbound HTTP/HTTPS
+- **llm/tinyproxy.conf**: Proxy configuration with blocklist mode
+- **llm/blocklist**: Regex patterns blocking direct IP connections
 
 ### Network Isolation
 
 The container uses a two-layer network isolation approach:
 
-1. **nftables firewall** (llm/rules.nft): Default-deny policy that only allows:
-   - Cloudflare DNS (1.1.1.1) and Quad9 DNS (9.9.9.9)
-   - Connections to tinyproxy on the Docker network (172.16.0.0/12 port 8888)
+1. **nftables firewall** (llm/rules.nft): UID-based filtering:
+   - Only tinyproxy user can make outbound HTTP/HTTPS (ports 80/443)
+   - DNS allowed to Cloudflare (1.1.1.1) and Quad9 (9.9.9.9)
+   - Private networks blocked (RFC1918, RFC6598) to prevent SSRF
+   - Docker subnet dynamically allowed at startup
    - All other outbound connections are rejected
 
-2. **tinyproxy allowlist** (tinyproxy/allowlist): HTTP proxy that only permits connections to specific domains (Anthropic API, GitHub, npm registry, etc.)
-
-- **Validation**: Startup script verifies isolation by ensuring Google is unreachable both via proxy and directly (llm/entrypoint.sh:10-22)
+2. **tinyproxy blocklist** (llm/blocklist): Blocks connections to:
+   - Direct IP addresses (forces DNS usage)
+   - Any domains added to the blocklist
 
 ### Security Model
 
-- Container runs with minimal capabilities (docker-compose.yaml:14-22)
-- Privileges are dropped after network setup via setpriv (llm/entrypoint.sh:38-45)
+- Container runs with minimal capabilities (run_container.sh)
+- Only tinyproxy can make outbound web requests (UID-based nftables rules)
+- Private networks blocked to prevent SSRF attacks
+- Privileges are dropped after network setup via setpriv (llm/entrypoint.sh:35-42)
 - User runs with limited sudo access for package installation (llm/llm_sudoers)
-- Persistent Claude configuration via Docker volume (docker-compose.yaml:35-37)
+- Persistent Claude configuration via Docker volume
 
 ## Development Commands
 
@@ -44,50 +50,55 @@ The container uses a two-layer network isolation approach:
 
 ```bash
 # Build the container
-docker-compose build
+docker build -t llm --build-arg LLM_USER=llm --build-arg LLM_HOME_DIR=/home/llm llm/
 
-# Start the container
-docker-compose up -d
+# Run the container
+./run_container.sh
 
-# Enter the container
-docker-compose exec llm bash
-
-# View logs
-docker-compose logs -f
+# Or run with a specific command
+./run_container.sh claude
 ```
 
 ### Testing Network Isolation
 
-The entrypoint automatically validates isolation, but you can test manually:
-
 ```bash
-# Should fail (blocked)
+# Should succeed (allowed via proxy)
 curl https://www.google.com
 
-# Should succeed (allowed)
-curl https://api.anthropic.com
-curl https://api.github.com
+# Should fail (direct connection blocked by nftables)
+curl --noproxy '*' https://www.google.com
+
+# Should fail (IP-based connection blocked by tinyproxy)
+curl https://1.2.3.4
+
+# Should fail (private network blocked)
+curl http://192.168.1.1
+
+# DNS resolution should work
+dig example.com
+
+# Check tinyproxy logs
+cat /var/log/tinyproxy/tinyproxy.log
 ```
 
 ### Modifying Network Access
 
-To allow access to additional domains, edit `tinyproxy/allowlist` and either:
-1. Rebuild and restart the container, or
-2. Reload tinyproxy by sending SIGUSR1: `docker compose exec tinyproxy kill -USR1 1`
+To block additional domains, edit `llm/blocklist` and rebuild the container.
 
 To modify IP-level firewall rules, edit `llm/rules.nft` and rebuild the container.
 
 ## Key Files
 
 - **llm/Dockerfile:65**: Claude Code installation
-- **llm/entrypoint.sh:5**: Firewall setup
-- **llm/rules.nft:47-59**: Output chain with drop policy
-- **tinyproxy/allowlist**: Domain allowlist for HTTP proxy
-- **docker-compose.yaml:25**: DNS configuration (Cloudflare & Quad9)
+- **llm/entrypoint.sh:15**: Firewall setup
+- **llm/rules.nft:40-64**: Output chain with UID-based rules
+- **llm/tinyproxy.conf**: Proxy configuration
+- **llm/blocklist**: Domain/IP blocklist patterns
+- **run_container.sh**: Container run script with capabilities
 
 ## Environment Configuration
 
-- `.env`: Defines `LLM_USER` (default: llm)
+- `.env`: Defines `LLM_USER` (default: llm) - used during build
 - Persistent config stored in Docker volume `claude_config`
 
 ## Installing Packages

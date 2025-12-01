@@ -1,3 +1,12 @@
+# nftables rules for LLM container
+#
+# Security model:
+# - Only tinyproxy (running as tinyproxy user) can make outbound HTTP/HTTPS connections
+# - All other processes must go through the proxy
+# - Private networks are blocked to prevent SSRF attacks
+# - DNS is allowed to approved public resolvers
+#
+#
 # For reference, here are the rules my newly-started container, macOS
 # + Colima + Docker.  We are not flushing the existing ruleset because
 # I don't want to lose these.
@@ -27,33 +36,55 @@
 destroy table llm_egress
 
 table inet llm_egress {
-    set allowed_ipv4 {
-        typeof ip saddr
+    set private_ipv4_networks {
+        typeof ip daddr
         flags interval
         elements = {
-            # Cloudflare DNS
-            1.1.1.1,
-            # Quad9 DNS
-            9.9.9.9,
+            10.0.0.0/8,
+            172.16.0.0/12,
+            192.168.0.0/16,
+            100.64.0.0/10,    # RFC6598 CGNAT
+            169.254.0.0/16,   # Link-local
         }
     }
 
-    set allowed_ipv6 {
-        typeof ip6 saddr
+    set allowed_ipv4 {
+        typeof ip daddr
         flags interval
+    }
+
+    set dns_servers {
+        typeof ip daddr
+        elements = {
+            1.1.1.1,    # Cloudflare
+            9.9.9.9,    # Quad9
+        }
     }
 
     chain output {
         type filter hook output priority filter
         policy drop
 
+        # Allow established/related connections
         ct state vmap {established: accept, related: accept, invalid: drop}
+
+        # Allow loopback
         oif lo accept
+
+        # Explicitly allowed IPv4 destinations (like Docker's subnet,
+        # set up at runtime)
         ip daddr @allowed_ipv4 counter accept
-        ip6 daddr @allowed_ipv6 counter accept
-        # Allow connections to tinyproxy on Docker network
-        ip daddr 172.16.0.0/12 tcp dport 8888 counter accept
-        # Faster failures
+
+        # Block private networks
+        ip daddr @private_ipv4_networks counter reject
+
+        # Allow DNS to approved servers (any process)
+        ip daddr @dns_servers meta l4proto {tcp, udp} th dport 53 accept
+
+        # Only tinyproxy can make outbound HTTP/HTTPS
+        meta skuid "tinyproxy" tcp dport {80, 443} counter accept
+
+        # Reject with error for faster failure
         meta l4proto {tcp, udp} counter reject
     }
 }

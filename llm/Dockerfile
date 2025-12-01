@@ -9,8 +9,10 @@ RUN dnf -y --refresh upgrade && dnf clean all
 # Packages required for isolation
 RUN dnf -y --refresh install \
     jq \
+    iproute \
     nftables \
     python3 \
+    tinyproxy \
     util-linux \
     && dnf clean all
 
@@ -30,27 +32,8 @@ RUN dnf -y --refresh install \
     # nano \
     && dnf clean all
 
-# Nice-to-haves when interactive
-RUN dnf -y --refresh install \
-    bat \
-    bind-utils \
-    direnv \
-    fd-find \
-    fzf \
-    iproute \
-    iputils \
-    less \
-    lsof \
-    # ping \
-    procps-ng \
-    ripgrep \
-    tree \
-    vim-enhanced \
-    zoxide \
-    && dnf clean all
-
-ARG LLM_USER
-ARG LLM_HOME_DIR
+ARG LLM_USER=llm
+ARG LLM_HOME_DIR=/home/${LLM_USER}
 
 ENV LLM_USER=$LLM_USER
 ENV LLM_HOME_DIR=$LLM_HOME_DIR
@@ -67,13 +50,37 @@ RUN npm install -g @openai/codex
 
 USER root
 
-RUN install -o "$LLM_USER" -g "$LLM_USER" -d /workspace
+# Nice-to-haves when interactive
+RUN dnf -y --refresh install \
+    bat \
+    bind-utils \
+    direnv \
+    fd-find \
+    fzf \
+    iputils \
+    less \
+    lsof \
+    # ping \
+    procps-ng \
+    ripgrep \
+    rsync \
+    tree \
+    vim-enhanced \
+    zoxide \
+    && dnf clean all
 
 COPY --chown=root:root --chmod=600 llm_sudoers /etc/sudoers.d/
 RUN sed -E -i "s/^llm\\s/$LLM_USER /" /etc/sudoers.d/llm_sudoers
 
 COPY --chown=root:root --chmod=0755 entrypoint.sh /
 COPY --chown=root:root --chmod=0600 rules.nft /root/
+
+# Copy tinyproxy configs
+COPY --chown=root:root --chmod=644 tinyproxy.conf /etc/tinyproxy/tinyproxy.conf
+COPY --chown=root:root --chmod=644 blocklist /etc/tinyproxy/blocklist
+# Create tinyproxy log directory and log file (world-readable)
+RUN install -d -m 755 -o tinyproxy -g tinyproxy /var/log/tinyproxy && \
+    install -m 644 -o tinyproxy -g tinyproxy /dev/null /var/log/tinyproxy/tinyproxy.log
 
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["/bin/bash"]
