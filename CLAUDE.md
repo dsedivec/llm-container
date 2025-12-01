@@ -10,33 +10,33 @@ This project provides a security-hardened Docker container for running Claude Co
 
 ### Core Components
 
-- **Dockerfile**: Fedora-based container with Claude Code, network tools (nftables), and development utilities
-- **entrypoint.sh**: Container initialization script that:
-  1. Fetches GitHub's IP ranges from their API
-  2. Configures nftables firewall rules
-  3. Validates network isolation (ensures Google is unreachable)
-  4. Drops privileges and launches user shell
-- **rules.nft**: nftables configuration defining allowed IP ranges and drop-by-default policy
-- **add_ip_ranges_to_nft_sets.py**: Python utility to populate nftables IP sets from CIDR ranges
+- **llm/Dockerfile**: Fedora-based container with Claude Code, network tools (nftables), and development utilities
+- **llm/entrypoint.sh**: Container initialization script that:
+  1. Configures nftables firewall rules
+  2. Validates network isolation (ensures Google is unreachable both via proxy and directly)
+  3. Drops privileges and launches user shell
+- **llm/rules.nft**: nftables configuration defining allowed IP ranges and drop-by-default policy
+- **tinyproxy/**: HTTP proxy sidecar that allowlists specific domains (Anthropic API, GitHub, npm, etc.)
 
 ### Network Isolation
 
-The container uses a default-deny network policy implemented via nftables:
+The container uses a two-layer network isolation approach:
 
-- **Allowed destinations** (rules.nft:30-51):
-  - Cloudflare DNS (1.1.1.1)
-  - Quad9 DNS (9.9.9.9)
-  - Anthropic API (160.79.104.0/23, 2607:6bc0::/48)
-  - GitHub (dynamically added via API during startup)
-- **Policy**: All other outbound connections are rejected (rules.nft:62)
-- **Validation**: Startup script verifies isolation by ensuring curl to Google fails (entrypoint.sh:13-21)
+1. **nftables firewall** (llm/rules.nft): Default-deny policy that only allows:
+   - Cloudflare DNS (1.1.1.1) and Quad9 DNS (9.9.9.9)
+   - Connections to tinyproxy on the Docker network (172.16.0.0/12 port 8888)
+   - All other outbound connections are rejected
+
+2. **tinyproxy allowlist** (tinyproxy/allowlist): HTTP proxy that only permits connections to specific domains (Anthropic API, GitHub, npm registry, etc.)
+
+- **Validation**: Startup script verifies isolation by ensuring Google is unreachable both via proxy and directly (llm/entrypoint.sh:10-22)
 
 ### Security Model
 
-- Container runs with minimal capabilities (docker-compose.yaml:13-21)
-- Privileges are dropped after network setup via setpriv (entrypoint.sh:28-35)
-- User runs with sudo access for package installation (llm_sudoers)
-- Persistent Claude configuration via Docker volume (docker-compose.yaml:26)
+- Container runs with minimal capabilities (docker-compose.yaml:14-22)
+- Privileges are dropped after network setup via setpriv (llm/entrypoint.sh:38-45)
+- User runs with limited sudo access for package installation (llm/llm_sudoers)
+- Persistent Claude configuration via Docker volume (docker-compose.yaml:35-37)
 
 ## Development Commands
 
@@ -69,24 +69,31 @@ curl https://api.anthropic.com
 curl https://api.github.com
 ```
 
-### Modifying Firewall Rules
+### Modifying Network Access
 
-1. Edit `rules.nft` to add/remove IP ranges in the `allowed_ipv4` or `allowed_ipv6` sets
-2. Rebuild and restart the container
-3. Alternatively, use the Python utility to add ranges dynamically:
+To allow access to additional domains, edit `tinyproxy/allowlist` and either:
+1. Rebuild and restart the container, or
+2. Reload tinyproxy by sending SIGUSR1: `docker compose exec tinyproxy kill -USR1 1`
 
-   ```bash
-   echo "192.0.2.0/24" | sudo python3 /root/add_ip_ranges_to_nft_sets.py llm_egress allowed_ipv4 allowed_ipv6
-   ```
+To modify IP-level firewall rules, edit `llm/rules.nft` and rebuild the container.
 
 ## Key Files
 
-- **Dockerfile:64**: Claude Code installation
-- **entrypoint.sh:7-11**: GitHub IP range fetching and firewall setup
-- **rules.nft:53-64**: Output chain with drop policy
-- **docker-compose.yaml:24**: DNS configuration (Cloudflare & Quad9)
+- **llm/Dockerfile:65**: Claude Code installation
+- **llm/entrypoint.sh:5**: Firewall setup
+- **llm/rules.nft:47-59**: Output chain with drop policy
+- **tinyproxy/allowlist**: Domain allowlist for HTTP proxy
+- **docker-compose.yaml:25**: DNS configuration (Cloudflare & Quad9)
 
 ## Environment Configuration
 
 - `.env`: Defines `LLM_USER` (default: llm)
 - Persistent config stored in Docker volume `claude_config`
+
+## Installing Packages
+
+You can use `sudo dnf install` to install any commands or packages you need.
+
+## Development Workflow
+
+When developing new features (such as `llmbox`), work in a feature branch and make commits at logical points throughout development. For `llmbox` development, use the branch `llmbox`.
