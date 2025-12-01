@@ -12,8 +12,8 @@ exec docker run --rm -it \
     -e HTTP_PROXY=http://127.0.0.1:8888 \
     -e HTTPS_PROXY=http://127.0.0.1:8888 \
     -e NO_PROXY=localhost,127.0.0.1 \
-    -e CLAUDE_CONFIG_DIR=/home/llm/.claude_persistent \
-    -v claude_config:/home/llm/.claude_persistent \
-    -v codex_config:/home/llm/.codex \
+    -e CLAUDE_CONFIG_DIR=/home/llm/.persist/claude \
+    -e CODEX_HOME=/home/llm/.persist/codex \
+    -v llm_persist:/home/llm/.persist \
      "$@" \
     llm

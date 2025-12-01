@@ -82,5 +82,10 @@ COPY --chown=root:root --chmod=644 blocklist /etc/tinyproxy/blocklist
 RUN install -d -m 755 -o tinyproxy -g tinyproxy /var/log/tinyproxy && \
     install -m 644 -o tinyproxy -g tinyproxy /dev/null /var/log/tinyproxy/tinyproxy.log
 
+RUN install -d -m 755 -o "$LLM_USER" -g "$LLM_USER" "$LLM_HOME_DIR/.bashrc.d"
+COPY --chown=$LLM_USER:$LLM_USER --chmod=0600 llm_bashrc $LLM_HOME_DIR/.bashrc.d/50_persist_bashrc
+RUN install -d -m 700 -o "$LLM_USER" -g "$LLM_USER" "$LLM_HOME_DIR/.persist"
+VOLUME ["$LLM_HOME_DIR/.persist"]
+
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["/bin/bash"]

@@ -58,4 +58,4 @@ exec setpriv \
     -- \
     runuser -u "$LLM_USER" -g "$LLM_USER" \
     -- \
-    sh -lc 'cd && exec "$@"' -- "$@"
+    bash -lc 'cd && exec "$@"' -- "$@"
