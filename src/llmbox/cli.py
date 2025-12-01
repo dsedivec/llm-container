@@ -226,8 +226,13 @@ def proxy_reload(profile: str) -> None:
         click.echo("Warning: no running containers for this profile")
         return
 
-    for container in failures:
-        click.echo(f"Error: failed to reload proxy in container {container}")
+    if failures:
+        for container, detail in failures:
+            message = f"Error: failed to reload proxy in container {container}"
+            if detail:
+                message += f": {detail}"
+            click.echo(message)
+        raise click.ClickException("Proxy reload failed")
 
 
 @cli.command()

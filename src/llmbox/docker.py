@@ -110,12 +110,12 @@ def list_profile_containers(profile: str, runner=subprocess.run) -> list[str]:
     return [line.strip() for line in result.stdout.splitlines() if line.strip()]
 
 
-def reload_proxy(profile: str, runner=subprocess.run) -> tuple[list[str], list[str]]:
+def reload_proxy(profile: str, runner=subprocess.run) -> tuple[list[str], list[tuple[str, str]]]:
     containers = list_profile_containers(profile, runner=runner)
     if not containers:
         return [], []
 
-    failures: list[str] = []
+    failures: list[tuple[str, str]] = []
     for container in containers:
         exec_command = [
             "docker",
@@ -123,10 +123,11 @@ def reload_proxy(profile: str, runner=subprocess.run) -> tuple[list[str], list[s
             container,
             "sh",
             "-c",
-            'kill -USR1 "$(cat /run/tinyproxy.pid)"',
+            'pid="$(cat /run/tinyproxy.pid)" && runuser -u tinyproxy -- kill -USR1 "$pid"',
         ]
         result = runner(exec_command, check=False, capture_output=True, text=True)
         if result.returncode != 0:
-            failures.append(container)
+            detail = (result.stderr or result.stdout or "").strip()
+            failures.append((container, detail))
 
     return containers, failures
