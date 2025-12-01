@@ -87,5 +87,9 @@ COPY --chown=$LLM_USER:$LLM_USER --chmod=0600 llm_bashrc $LLM_HOME_DIR/.bashrc.d
 RUN install -d -m 700 -o "$LLM_USER" -g "$LLM_USER" "$LLM_HOME_DIR/.persist"
 VOLUME ["$LLM_HOME_DIR/.persist"]
 
+# NOTE: Make sure you don't install this before running dnf commands,
+# or they're fail because you won't have a proxy available during build.
+COPY --chown=root:root --chmod=644 dnf_proxy.conf /etc/dnf/libdnf5.conf.d/
+
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["/bin/bash"]
