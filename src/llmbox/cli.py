@@ -232,9 +232,10 @@ def proxy_reload(profile: str) -> None:
 
 @cli.command()
 @click.option("-i", "--image", "image_name", help="Container image to run.")
+@click.option("-n", "--dry-run", is_flag=True, help="Print docker command without running it.")
 @click.argument("profile", required=False)
 @click.argument("args", nargs=-1)
-def run(image_name: str | None, profile: str | None, args: tuple[str, ...]) -> None:
+def run(image_name: str | None, dry_run: bool, profile: str | None, args: tuple[str, ...]) -> None:
     overrides: dict[str, object] = {}
     if image_name:
         overrides["image_name"] = image_name
@@ -258,6 +259,20 @@ def run(image_name: str | None, profile: str | None, args: tuple[str, ...]) -> N
     click.echo(f"Using profile {name}")
     if not data.volumes:
         click.echo("Warning: profile has no volumes")
+
+    from .docker import build_run_command
+
+    command_line, _ = build_run_command(
+        settings.image_name,
+        name,
+        data.volumes,
+        list(args),
+        settings.config_dir,
+    )
+
+    if dry_run:
+        click.echo(" ".join(str(part) for part in command_line))
+        return
 
     run_container(
         settings.image_name,
