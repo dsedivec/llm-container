@@ -21,6 +21,13 @@ if [ "$result" != 7 ]; then
      exit 1
 fi
 
+runuser -u "$LLM_USER" -- sudo -n true
+result=$?
+if [ "$result" == 0 ]; then
+    echo "User should not be able to run arbitrary sudo commands" >&2
+    exit 1
+fi
+
 set -e
 
 # Make llm's own files readable/writable by llm.
