@@ -1,0 +1,45 @@
+[project]
+name = "llmbox"
+version = "0.1.0"
+description = "CLI helper to manage llm sandbox containers"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "llmbox", email = "noreply@example.com" }]
+dependencies = [
+    "click>=8.1.7",
+    "pydantic>=2.7.0",
+    "pydantic-settings>=2.2.1",
+    "pyyaml>=6.0.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "basedpyright>=1.17.0",
+    "black>=24.3.0",
+    "ruff>=0.6.9",
+    "pytest>=8.3.0",
+]
+
+[project.scripts]
+llmbox = "llmbox.cli:cli"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+extend-select = ["I"]
+
+[tool.basedpyright]
+typeCheckingMode = "standard"
+reportMissingTypeStubs = false
+reportUnknownVariableType = false
+reportUnknownMemberType = false
