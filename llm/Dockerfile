@@ -20,7 +20,7 @@ RUN dnf -y --refresh install \
     && dnf clean all
 
 # Packages taken from the devcontainer
-# https://github.com/anthropics/llm-code/blob/main/.devcontainer/Dockerfile
+# https://github.com/anthropics/claude-code/blob/main/.devcontainer/Dockerfile
 RUN dnf -y --refresh install \
     gh \
     git \
