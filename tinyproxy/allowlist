@@ -13,3 +13,12 @@ api.github.com
 raw.githubusercontent.com
 objects.githubusercontent.com
 codeload.github.com
+
+# Package installations
+
+## JS
+registry.npmjs.org
+
+## Python
+pypi.org
+files.pythonhosted.org
