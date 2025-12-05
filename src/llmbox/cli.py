@@ -18,6 +18,37 @@ from .settings import Settings, State, load_state, save_state
 from .volumes import VolumeMount, normalize_host_path, parse_mount_spec
 
 
+class AbbreviatingGroup(click.Group):
+    """A Click group that allows commands to be abbreviated to unique prefixes.
+
+    For example, if a group has commands 'volume' and 'run', then 'vol' or 'v'
+    will resolve to 'volume', but 'r' will resolve to 'run'. If a prefix is
+    ambiguous (matches multiple commands), an error is raised.
+    """
+
+    def resolve_command(
+        self, ctx: click.Context, args: list[str]
+    ) -> tuple[str | None, click.Command | None, list[str]]:
+        cmd_name = args[0] if args else None
+        if cmd_name is None:
+            return None, None, args
+
+        # Try exact match first
+        cmd = self.get_command(ctx, cmd_name)
+        if cmd is not None:
+            return cmd_name, cmd, args[1:]
+
+        # Try prefix matching
+        matches = [name for name in self.list_commands(ctx) if name.startswith(cmd_name)]
+
+        if len(matches) == 1:
+            return matches[0], self.get_command(ctx, matches[0]), args[1:]
+        elif len(matches) > 1:
+            ctx.fail(f"Ambiguous command '{cmd_name}': could be {', '.join(sorted(matches))}")
+
+        return super().resolve_command(ctx, args)
+
+
 def _load_settings(overrides: Mapping[str, Any]) -> Settings:
     try:
         return Settings(**overrides)
@@ -74,12 +105,12 @@ def _delete_targets_from_volumes(
     return [volume for idx, volume in enumerate(remaining) if idx not in matches]
 
 
-@click.group()
+@click.group(cls=AbbreviatingGroup)
 def cli() -> None:
     """Manage llm sandbox containers."""
 
 
-@cli.group()
+@cli.group(cls=AbbreviatingGroup)
 def volume() -> None:
     """Manage profile volumes."""
 
@@ -147,7 +178,7 @@ def volume_delete(profile: str, mount: tuple[str, ...]) -> None:
     manager.save(profile_name, data)
 
 
-@cli.group()
+@cli.group(cls=AbbreviatingGroup)
 def profile() -> None:
     """Manage profiles."""
 
@@ -286,7 +317,7 @@ def profile_set_default(profile: str) -> None:
     click.echo(f"Default profile set to {resolved}")
 
 
-@cli.group()
+@cli.group(cls=AbbreviatingGroup)
 def proxy() -> None:
     """Manage proxy settings."""
 
