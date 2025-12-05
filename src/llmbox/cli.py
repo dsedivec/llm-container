@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
 
@@ -373,9 +374,15 @@ def run(image_name: str | None, dry_run: bool, profile: str | None, args: tuple[
         data = manager.load(name)
     except (FileNotFoundError, ValueError) as exc:
         raise click.ClickException(str(exc)) from exc
-    click.echo(f"Using profile {name}")
-    if not data.volumes:
-        click.echo("Warning: profile has no volumes")
+    click.echo(f"Using profile {click.style(name, bold=True)}")
+    if data.volumes:
+        for vol in data.volumes:
+            host = click.style(str(vol.host), fg="cyan")
+            container = click.style(str(vol.container), fg="green")
+            click.echo(f"  {host} -> {container}")
+    else:
+        click.echo(click.style("Warning: profile has no volumes", fg="yellow", bold=True))
+        time.sleep(1)
 
     from .docker import build_run_command
 
