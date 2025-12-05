@@ -10,7 +10,7 @@ from .docker import reload_proxy, run_container
 from .profiles import (
     ProfileManager,
     choose_existing_default,
-    resolve_last_used_profile,
+    resolve_default_profile,
     resolve_profile_for_run,
     validate_profile_name,
 )
@@ -33,10 +33,10 @@ def _parse_profile(name: str) -> str:
 
 
 def _resolve_profile_arg(name: str, manager: ProfileManager, state: State) -> str:
-    """Resolve a profile argument, handling '-' as a shortcut for last used profile."""
+    """Resolve a profile argument, handling '-' as a shortcut for the default profile."""
     if name == "-":
         try:
-            return resolve_last_used_profile(manager, state)
+            return resolve_default_profile(manager, state)
         except ValueError as exc:
             raise click.ClickException(str(exc)) from exc
     return _parse_profile(name)
@@ -99,6 +99,7 @@ def volume_add(profile: str, mount: tuple[str, ...], force: bool) -> None:
         raise click.ClickException(str(exc)) from exc
     if created:
         click.echo(f"Creating profile {profile_name}")
+        save_state(settings.state_dir, State(default_profile=profile_name))
 
     cwd = Path.cwd()
     try:
@@ -157,7 +158,7 @@ def profile_list() -> None:
     manager = ProfileManager(settings.config_dir)
     state = load_state(settings.state_dir)
     profiles = manager.list_profiles()
-    default_profile = choose_existing_default(profiles, state.last_profile)
+    default_profile = choose_existing_default(profiles, state.default_profile)
 
     for idx, name in enumerate(profiles, start=1):
         marker = " *" if name == default_profile else ""
@@ -165,15 +166,31 @@ def profile_list() -> None:
 
 
 @profile.command("create")
-@click.argument("profile")
-def profile_create(profile: str) -> None:
+@click.argument("profile", required=False)
+def profile_create(profile: str | None) -> None:
     settings = _load_settings({})
     manager = ProfileManager(settings.config_dir)
-    profile_name = _parse_profile(profile)
+    state = load_state(settings.state_dir)
+
+    if profile is None:
+        # Let Click surface usage by raising an error
+        raise click.UsageError("Missing argument 'PROFILE'.")
+
+    if profile == "-":
+        profile_name = "default"
+    else:
+        profile_name = _parse_profile(profile)
+
+    if profile_name == "default" and manager.exists("default") and profile == "-":
+        raise click.ClickException("Profile default already exists")
+
     try:
         manager.create(profile_name)
     except FileExistsError as exc:
         raise click.ClickException(str(exc)) from exc
+
+    click.echo(f"Created profile {profile_name}")
+    save_state(settings.state_dir, State(default_profile=profile_name))
 
 
 @profile.command("delete")
@@ -200,6 +217,17 @@ def profile_delete(profile: tuple[str, ...]) -> None:
     except FileNotFoundError as exc:
         raise click.ClickException(str(exc)) from exc
 
+    remaining = manager.list_profiles()
+    new_default = state.default_profile
+    if state.default_profile in targets:
+        if remaining:
+            new_default = "default" if "default" in remaining else sorted(remaining)[0]
+            click.echo(f"Default profile removed, new default profile is: {new_default}")
+        else:
+            new_default = None
+            click.echo("Default profile removed; no profiles remain, clearing default")
+        save_state(settings.state_dir, State(default_profile=new_default))
+
 
 @profile.command("rename")
 @click.argument("old")
@@ -215,6 +243,9 @@ def profile_rename(old: str, new: str) -> None:
     except (FileNotFoundError, FileExistsError) as exc:
         raise click.ClickException(str(exc)) from exc
 
+    if state.default_profile == old_name:
+        save_state(settings.state_dir, State(default_profile=new_name))
+
 
 @profile.command("copy")
 @click.argument("source")
@@ -229,6 +260,32 @@ def profile_copy(source: str, destination: str) -> None:
         manager.copy(src, dest)
     except (FileNotFoundError, FileExistsError, ValueError) as exc:
         raise click.ClickException(str(exc)) from exc
+
+
+@profile.command("set-default")
+@click.argument("profile")
+def profile_set_default(profile: str) -> None:
+    settings = _load_settings({})
+    manager = ProfileManager(settings.config_dir)
+    state = load_state(settings.state_dir)
+    profiles = manager.list_profiles()
+
+    if profile == "-":
+        raise click.ClickException("Use an explicit profile name to set default")
+
+    resolved = None
+    if profile.isdigit():
+        index = int(profile) - 1
+        if index < 0 or index >= len(profiles):
+            raise click.ClickException(f"Profile number {profile} is out of range")
+        resolved = profiles[index]
+    else:
+        resolved = _parse_profile(profile)
+        if not manager.exists(resolved):
+            raise click.ClickException(f"Profile {resolved} does not exist")
+
+    save_state(settings.state_dir, State(default_profile=resolved))
+    click.echo(f"Default profile set to {resolved}")
 
 
 @cli.group()
@@ -273,11 +330,15 @@ def run(image_name: str | None, dry_run: bool, profile: str | None, args: tuple[
 
     requested_profile = None if profile in (None, "-") else profile
     try:
-        name, created = resolve_profile_for_run(manager, state, requested_profile)
+        name, created, new_default, reassigned = resolve_profile_for_run(
+            manager, state, requested_profile
+        )
     except (FileNotFoundError, ValueError) as exc:
         raise click.ClickException(str(exc)) from exc
     if created:
         click.echo(f"Creating profile {name}")
+    if reassigned and not created and new_default:
+        click.echo(f"Default profile missing; switching default to {new_default}")
 
     try:
         data = manager.load(name)
@@ -308,4 +369,5 @@ def run(image_name: str | None, dry_run: bool, profile: str | None, args: tuple[
         list(args),
         settings.config_dir,
     )
-    save_state(settings.state_dir, State(last_profile=name))
+    if new_default:
+        save_state(settings.state_dir, State(default_profile=new_default))

@@ -34,3 +34,15 @@ def test_settings_reject_unknown_keys(tmp_path: Path) -> None:
 
     with pytest.raises((ValidationError, ValueError)):
         Settings(config_dir=config_dir)
+
+
+def test_state_migrates_last_profile(tmp_path: Path) -> None:
+    state_dir = tmp_path / "llmbox"
+    state_dir.mkdir()
+    state_file = state_dir / "state.yaml"
+    state_file.write_text("last_profile: old\n")
+
+    from llmbox.settings import load_state
+
+    state = load_state(state_dir)
+    assert state.default_profile == "old"

@@ -36,7 +36,7 @@ class GlobalConfig(BaseModel):
 
 
 class State(BaseModel):
-    last_profile: str | None = None
+    default_profile: str | None = None
 
     model_config = ConfigDict(extra="forbid")
 
@@ -120,6 +120,14 @@ def load_state(state_dir: Path) -> State:
     loaded = yaml.safe_load(state_path.read_text()) or {}
     if not isinstance(loaded, dict):
         raise ValueError(f"State file {state_path} must contain a mapping")
+
+    # Backward compatibility: migrate legacy last_profile -> default_profile
+    if "default_profile" not in loaded and "last_profile" in loaded:
+        loaded["default_profile"] = loaded["last_profile"]
+    # Drop legacy/unknown keys before validation to avoid extra errors
+    allowed_keys = {"default_profile"}
+    loaded = {k: v for k, v in loaded.items() if k in allowed_keys}
+
     return State.model_validate(loaded)
 
 

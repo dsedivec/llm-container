@@ -128,66 +128,52 @@ class ProfileManager:
         self.save(destination, data)
 
 
-def choose_existing_default(profiles: Sequence[str], last_profile: str | None) -> str | None:
-    if last_profile and last_profile in profiles:
-        return last_profile
-    if len(profiles) == 1:
-        return profiles[0]
+def choose_existing_default(profiles: Sequence[str], default_profile: str | None) -> str | None:
+    if default_profile and default_profile in profiles:
+        return default_profile
     return None
 
 
-def resolve_last_used_profile(manager: ProfileManager, state: State) -> str:
-    """Resolve the profile that would be used by 'llmbox run' with no arguments.
-
-    This is used when a user specifies '-' as the profile argument to reference
-    the same profile that 'llmbox run' would choose.
-
-    Returns:
-        The profile name that would be selected.
+def resolve_default_profile(manager: ProfileManager, state: State) -> str:
+    """Resolve the current default profile name.
 
     Raises:
-        ValueError: If no profile can be determined (multiple profiles exist
-            and none was recently used).
+        ValueError: If no default profile is set or it no longer exists.
     """
     profiles = manager.list_profiles()
-    chosen = choose_existing_default(profiles, state.last_profile)
+    chosen = choose_existing_default(profiles, state.default_profile)
     if chosen:
         return chosen
-
-    if not profiles:
-        raise ValueError(
-            "No profiles exist. Create one with 'llmbox profile create' or 'llmbox run'."
-        )
-
-    raise ValueError(
-        "Multiple profiles exist and none was recently used. "
-        "Specify a profile name or run 'llmbox run <profile>' first."
-    )
+    raise ValueError("No default profile is set. Create one or set a default profile first.")
 
 
 def resolve_profile_for_run(
     manager: ProfileManager, state: State, requested: str | None
-) -> tuple[str, bool]:
+) -> tuple[str, bool, str | None, bool]:
+    """Resolve profile for `llmbox run`.
+
+    Returns:
+        profile_name: str
+        created: bool (whether the profile file was just created)
+        new_default: str | None (default profile value to persist; None means unchanged)
+        reassigned: bool (default was missing and reassigned to an existing profile)
+    """
     if requested:
         profile = validate_profile_name(requested)
         if not manager.exists(profile):
             raise FileNotFoundError(f"Profile {profile} does not exist")
-        return profile, False
+        return profile, False, None, False
 
     profiles = manager.list_profiles()
-    chosen = choose_existing_default(profiles, state.last_profile)
+    chosen = choose_existing_default(profiles, state.default_profile)
     if chosen:
-        return chosen, False
+        return chosen, False, None, False
 
-    if not profiles:
-        manager.create("default")
-        return "default", True
+    # No recorded default or missing
+    if profiles:
+        fallback = "default" if "default" in profiles else sorted(profiles)[0]
+        return fallback, False, fallback, True
 
-    if len(profiles) == 1:
-        return profiles[0], False
-
-    if "default" not in profiles:
-        manager.create("default")
-        return "default", True
-
-    return "default", False
+    # No profiles exist at all; create default
+    manager.create("default")
+    return "default", True, "default", True
