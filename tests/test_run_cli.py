@@ -88,7 +88,9 @@ def test_run_reassigns_missing_default(tmp_path: Path, monkeypatch) -> None:
     assert state["default_profile"] == "alpha"
 
 
-def test_run_does_not_change_default_when_running_other_profile(tmp_path: Path, monkeypatch) -> None:
+def test_run_does_not_change_default_when_running_other_profile(
+    tmp_path: Path, monkeypatch
+) -> None:
     config_base = tmp_path / "config"
     state_base = tmp_path / "state"
     env = {

@@ -56,6 +56,7 @@ def test_volume_delete_by_number_keeps_original_order(tmp_path: Path, monkeypatc
     assert len(output) == 1
     assert str(second) in output[0]
 
+
 def test_volume_add_preserves_symlinks_in_container_path(tmp_path: Path, monkeypatch) -> None:
     config_base = tmp_path / "config"
     state_base = tmp_path / "state"

@@ -170,7 +170,6 @@ def profile_list() -> None:
 def profile_create(profile: str | None) -> None:
     settings = _load_settings({})
     manager = ProfileManager(settings.config_dir)
-    state = load_state(settings.state_dir)
 
     if profile is None:
         # Let Click surface usage by raising an error
@@ -267,7 +266,6 @@ def profile_copy(source: str, destination: str) -> None:
 def profile_set_default(profile: str) -> None:
     settings = _load_settings({})
     manager = ProfileManager(settings.config_dir)
-    state = load_state(settings.state_dir)
     profiles = manager.list_profiles()
 
     if profile == "-":
