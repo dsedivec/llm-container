@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os.path
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -32,7 +33,7 @@ def normalize_container_path(path: str | None, host: Path) -> Path:
     else:
         container = Path(path)
         target = container if container.is_absolute() else WORKSPACE_ROOT / container
-    return target.resolve(strict=False)
+    return Path(os.path.normpath(target))
 
 
 def parse_mount_spec(spec: str, *, cwd: Path, allow_missing: bool) -> VolumeMount:
