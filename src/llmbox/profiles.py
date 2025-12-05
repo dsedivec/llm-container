@@ -136,6 +136,35 @@ def choose_existing_default(profiles: Sequence[str], last_profile: str | None) -
     return None
 
 
+def resolve_last_used_profile(manager: ProfileManager, state: State) -> str:
+    """Resolve the profile that would be used by 'llmbox run' with no arguments.
+
+    This is used when a user specifies '-' as the profile argument to reference
+    the same profile that 'llmbox run' would choose.
+
+    Returns:
+        The profile name that would be selected.
+
+    Raises:
+        ValueError: If no profile can be determined (multiple profiles exist
+            and none was recently used).
+    """
+    profiles = manager.list_profiles()
+    chosen = choose_existing_default(profiles, state.last_profile)
+    if chosen:
+        return chosen
+
+    if not profiles:
+        raise ValueError(
+            "No profiles exist. Create one with 'llmbox profile create' or 'llmbox run'."
+        )
+
+    raise ValueError(
+        "Multiple profiles exist and none was recently used. "
+        "Specify a profile name or run 'llmbox run <profile>' first."
+    )
+
+
 def resolve_profile_for_run(
     manager: ProfileManager, state: State, requested: str | None
 ) -> tuple[str, bool]:

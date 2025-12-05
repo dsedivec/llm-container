@@ -10,6 +10,7 @@ from .docker import reload_proxy, run_container
 from .profiles import (
     ProfileManager,
     choose_existing_default,
+    resolve_last_used_profile,
     resolve_profile_for_run,
     validate_profile_name,
 )
@@ -29,6 +30,16 @@ def _parse_profile(name: str) -> str:
         return validate_profile_name(name)
     except ValueError as exc:
         raise click.ClickException(str(exc)) from exc
+
+
+def _resolve_profile_arg(name: str, manager: ProfileManager, state: State) -> str:
+    """Resolve a profile argument, handling '-' as a shortcut for last used profile."""
+    if name == "-":
+        try:
+            return resolve_last_used_profile(manager, state)
+        except ValueError as exc:
+            raise click.ClickException(str(exc)) from exc
+    return _parse_profile(name)
 
 
 def _delete_targets_from_volumes(
@@ -80,7 +91,8 @@ def volume() -> None:
 def volume_add(profile: str, mount: tuple[str, ...], force: bool) -> None:
     settings = _load_settings({})
     manager = ProfileManager(settings.config_dir)
-    profile_name = _parse_profile(profile)
+    state = load_state(settings.state_dir)
+    profile_name = _resolve_profile_arg(profile, manager, state)
     try:
         data, created = manager.ensure(profile_name)
     except (ValueError, FileExistsError) as exc:
@@ -104,7 +116,8 @@ def volume_add(profile: str, mount: tuple[str, ...], force: bool) -> None:
 def volume_list(profile: str) -> None:
     settings = _load_settings({})
     manager = ProfileManager(settings.config_dir)
-    profile_name = _parse_profile(profile)
+    state = load_state(settings.state_dir)
+    profile_name = _resolve_profile_arg(profile, manager, state)
     try:
         data = manager.load(profile_name)
     except (FileNotFoundError, ValueError) as exc:
@@ -120,7 +133,8 @@ def volume_list(profile: str) -> None:
 def volume_delete(profile: str, mount: tuple[str, ...]) -> None:
     settings = _load_settings({})
     manager = ProfileManager(settings.config_dir)
-    profile_name = _parse_profile(profile)
+    state = load_state(settings.state_dir)
+    profile_name = _resolve_profile_arg(profile, manager, state)
     try:
         data = manager.load(profile_name)
     except (FileNotFoundError, ValueError) as exc:
@@ -167,9 +181,12 @@ def profile_create(profile: str) -> None:
 def profile_delete(profile: tuple[str, ...]) -> None:
     settings = _load_settings({})
     manager = ProfileManager(settings.config_dir)
+    state = load_state(settings.state_dir)
     profiles = manager.list_profiles()
 
     def resolve(name: str) -> str:
+        if name == "-":
+            return _resolve_profile_arg(name, manager, state)
         if name.isdigit():
             index = int(name) - 1
             if index < 0 or index >= len(profiles):
@@ -190,7 +207,8 @@ def profile_delete(profile: tuple[str, ...]) -> None:
 def profile_rename(old: str, new: str) -> None:
     settings = _load_settings({})
     manager = ProfileManager(settings.config_dir)
-    old_name = _parse_profile(old)
+    state = load_state(settings.state_dir)
+    old_name = _resolve_profile_arg(old, manager, state)
     new_name = _parse_profile(new)
     try:
         manager.rename(old_name, new_name)
@@ -204,7 +222,8 @@ def profile_rename(old: str, new: str) -> None:
 def profile_copy(source: str, destination: str) -> None:
     settings = _load_settings({})
     manager = ProfileManager(settings.config_dir)
-    src = _parse_profile(source)
+    state = load_state(settings.state_dir)
+    src = _resolve_profile_arg(source, manager, state)
     dest = _parse_profile(destination)
     try:
         manager.copy(src, dest)
@@ -220,7 +239,10 @@ def proxy() -> None:
 @proxy.command("reload")
 @click.argument("profile")
 def proxy_reload(profile: str) -> None:
-    profile_name = _parse_profile(profile)
+    settings = _load_settings({})
+    manager = ProfileManager(settings.config_dir)
+    state = load_state(settings.state_dir)
+    profile_name = _resolve_profile_arg(profile, manager, state)
     containers, failures = reload_proxy(profile_name)
     if not containers:
         click.echo("Warning: no running containers for this profile")
