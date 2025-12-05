@@ -12,6 +12,7 @@ BASE_RUN_ARGS = [
     "run",
     "--rm",
     "-it",
+    "--init",
     "--cap-drop",
     "ALL",
     "--cap-add",
