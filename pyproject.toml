@@ -1,6 +1,6 @@
 [project]
 name = "llmbox"
-version = "0.1.0"
+dynamic = ["version"]
 description = "CLI helper to manage llm sandbox containers"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -32,6 +32,9 @@ dev = [
 
 [project.scripts]
 llmbox = "llmbox.cli:cli"
+
+[tool.hatch.version]
+path = "src/llmbox/__init__.py"
 
 [build-system]
 requires = ["hatchling"]

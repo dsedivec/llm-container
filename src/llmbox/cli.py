@@ -7,6 +7,7 @@ from typing import Any, Iterable, Mapping, Sequence
 import click
 from pydantic import ValidationError
 
+from . import version_with_commit
 from .docker import reload_proxy, run_container
 from .profiles import (
     ProfileManager,
@@ -107,8 +108,15 @@ def _delete_targets_from_volumes(
 
 
 @click.group(cls=AbbreviatingGroup)
+@click.version_option(version=version_with_commit(), package_name="llmbox")
 def cli() -> None:
     """Manage llm sandbox containers."""
+
+
+@cli.command()
+def version() -> None:
+    """Show the llmbox version."""
+    click.echo(version_with_commit())
 
 
 @cli.group(cls=AbbreviatingGroup)
