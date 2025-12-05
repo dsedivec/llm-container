@@ -168,6 +168,9 @@ def volume_list(profile: str) -> None:
         click.echo(f"{idx}. {volume.spec()}")
 
 
+volume.add_command(volume_list, name="ls")
+
+
 @volume.command("remove")
 @click.argument("profile")
 @click.argument("mount", nargs=-1, required=True)
@@ -187,6 +190,9 @@ def volume_remove(profile: str, mount: tuple[str, ...]) -> None:
     manager.save(profile_name, data)
 
 
+volume.add_command(volume_remove, name="rm")
+
+
 @cli.group(cls=AbbreviatingGroup)
 def profile() -> None:
     """Manage profiles."""
@@ -203,6 +209,9 @@ def profile_list() -> None:
     for idx, name in enumerate(profiles, start=1):
         marker = " *" if name == default_profile else ""
         click.echo(f"{idx}. {name}{marker}")
+
+
+profile.add_command(profile_list, name="ls")
 
 
 @profile.command("create")
@@ -266,6 +275,9 @@ def profile_remove(profile: tuple[str, ...]) -> None:
             new_default = None
             click.echo("Default profile removed; no profiles remain, clearing default")
         save_state(settings.state_dir, State(default_profile=new_default))
+
+
+profile.add_command(profile_remove, name="rm")
 
 
 @profile.command("rename")
