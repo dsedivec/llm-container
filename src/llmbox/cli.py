@@ -159,10 +159,10 @@ def volume_list(profile: str) -> None:
         click.echo(f"{idx}. {volume.spec()}")
 
 
-@volume.command("delete")
+@volume.command("remove")
 @click.argument("profile")
 @click.argument("mount", nargs=-1, required=True)
-def volume_delete(profile: str, mount: tuple[str, ...]) -> None:
+def volume_remove(profile: str, mount: tuple[str, ...]) -> None:
     settings = _load_settings({})
     manager = ProfileManager(settings.config_dir)
     state = load_state(settings.state_dir)
@@ -223,9 +223,9 @@ def profile_create(profile: str | None) -> None:
     save_state(settings.state_dir, State(default_profile=profile_name))
 
 
-@profile.command("delete")
+@profile.command("remove")
 @click.argument("profile", nargs=-1, required=True)
-def profile_delete(profile: tuple[str, ...]) -> None:
+def profile_remove(profile: tuple[str, ...]) -> None:
     settings = _load_settings({})
     manager = ProfileManager(settings.config_dir)
     state = load_state(settings.state_dir)

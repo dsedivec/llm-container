@@ -33,7 +33,7 @@ def test_volume_add_creates_profile(tmp_path: Path, monkeypatch) -> None:
     assert str(host_path) in list_result.output
 
 
-def test_volume_delete_by_number_keeps_original_order(tmp_path: Path, monkeypatch) -> None:
+def test_volume_remove_by_number_keeps_original_order(tmp_path: Path, monkeypatch) -> None:
     config_base = tmp_path / "config"
     state_base = tmp_path / "state"
     monkeypatch.setenv("XDG_CONFIG_HOME", str(config_base))
@@ -47,7 +47,7 @@ def test_volume_delete_by_number_keeps_original_order(tmp_path: Path, monkeypatc
 
     runner = CliRunner()
     runner.invoke(cli, ["volume", "add", "dev", str(first), str(second), str(third)])
-    delete_result = runner.invoke(cli, ["volume", "delete", "dev", "1", "3"])
+    delete_result = runner.invoke(cli, ["volume", "remove", "dev", "1", "3"])
     assert delete_result.exit_code == 0
 
     list_result = runner.invoke(cli, ["volume", "list", "dev"])

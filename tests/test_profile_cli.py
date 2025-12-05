@@ -54,7 +54,7 @@ def test_profile_create_sets_default_and_prints(tmp_path: Path, monkeypatch) -> 
     assert state["default_profile"] == "beta"
 
 
-def test_profile_delete_reassigns_default(tmp_path: Path, monkeypatch) -> None:
+def test_profile_remove_reassigns_default(tmp_path: Path, monkeypatch) -> None:
     config_base = tmp_path / "config"
     state_base = tmp_path / "state"
     monkeypatch.setenv("XDG_CONFIG_HOME", str(config_base))
@@ -64,7 +64,7 @@ def test_profile_delete_reassigns_default(tmp_path: Path, monkeypatch) -> None:
     for name in ("alpha", "beta", "default"):
         runner.invoke(cli.cli, ["profile", "create", name])
 
-    delete_result = runner.invoke(cli.cli, ["profile", "delete", "default"])
+    delete_result = runner.invoke(cli.cli, ["profile", "remove", "default"])
     assert delete_result.exit_code == 0
     assert "new default profile is: alpha" in delete_result.output
     state = yaml.safe_load((state_base / "llmbox" / "state.yaml").read_text())
