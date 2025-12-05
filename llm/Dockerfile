@@ -16,20 +16,9 @@ RUN dnf -y --refresh install \
     util-linux \
     && dnf clean all
 
-# Packages required for Claude
+# Packages required for the LLM tools.
 RUN dnf -y --refresh install \
     nodejs-npm \
-    && dnf clean all
-
-# Packages taken from the devcontainer
-# https://github.com/anthropics/claude-code/blob/main/.devcontainer/Dockerfile
-RUN dnf -y --refresh install \
-    gh \
-    git \
-    man-db \
-    man-pages \
-    unzip \
-    # nano \
     && dnf clean all
 
 ARG LLM_USER=llm
@@ -55,8 +44,17 @@ RUN ln -s .persist/copilot "$LLM_HOME_DIR/.copilot"
 
 USER root
 
-# Nice-to-haves when interactive
 RUN dnf -y --refresh install \
+    # Packages taken from the Claude devcontainer
+    # https://github.com/anthropics/claude-code/blob/main/.devcontainer/Dockerfile
+    gh \
+    git \
+    man-db \
+    man-pages \
+    unzip \
+    # nano \
+    #
+    # Other packages
     bat \
     bind-utils \
     direnv \
@@ -70,6 +68,7 @@ RUN dnf -y --refresh install \
     ripgrep \
     rsync \
     tree \
+    uv \
     vim-enhanced \
     zoxide \
     && dnf clean all
