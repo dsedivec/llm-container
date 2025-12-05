@@ -46,6 +46,12 @@ ENV NPM_CONFIG_PREFIX=$LLM_HOME_DIR/.local
 
 RUN npm install -g @anthropic-ai/claude-code@latest
 RUN npm install -g @openai/codex
+RUN npm install -g @github/copilot
+
+RUN install -d -m 700 -o "$LLM_USER" -g "$LLM_USER" "$LLM_HOME_DIR/.persist"
+VOLUME ["$LLM_HOME_DIR/.persist"]
+
+RUN ln -s .persist/copilot "$LLM_HOME_DIR/.copilot"
 
 USER root
 
@@ -83,8 +89,6 @@ RUN install -d -m 755 -o tinyproxy -g tinyproxy /var/log/tinyproxy && \
 
 RUN install -d -m 755 -o "$LLM_USER" -g "$LLM_USER" "$LLM_HOME_DIR/.bashrc.d"
 COPY --chown=$LLM_USER:$LLM_USER --chmod=0600 llm_bashrc $LLM_HOME_DIR/.bashrc.d/50_persist_bashrc
-RUN install -d -m 700 -o "$LLM_USER" -g "$LLM_USER" "$LLM_HOME_DIR/.persist"
-VOLUME ["$LLM_HOME_DIR/.persist"]
 
 # NOTE: Make sure you don't install this before running dnf commands,
 # or they're fail because you won't have a proxy available during build.

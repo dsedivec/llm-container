@@ -46,6 +46,9 @@ if [ "$result" == 0 ]; then
 fi
 set -e
 
+install -d -o "$LLM_USER" -g "$LLM_USER" -m 0700 \
+        "$LLM_HOME_DIR/.persist/copilot"
+
 chown -hR "$LLM_USER:$LLM_USER" "$LLM_HOME_DIR"
 
 # runuser sets up the environment for us.  Otherwise we'd have to
