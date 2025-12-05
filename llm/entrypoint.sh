@@ -37,14 +37,18 @@ nft add element inet llm_egress allowed_ipv4 "{ $docker_subnet }"
 /usr/sbin/tinyproxy -c /etc/tinyproxy/tinyproxy.conf
 
 # Verify sudo permissions are restricted
-set +e
-runuser -u "$LLM_USER" -- sudo -n true
-result=$?
-if [ "$result" == 0 ]; then
+if runuser -u "$LLM_USER" -- sudo -n true; then
     echo "User should not be able to run arbitrary sudo commands" >&2
     exit 1
 fi
-set -e
+
+# Verify network is restricted
+result=0
+curl --noproxy '*' https://www.google.com || result=$?
+if [ "$result" -ne 7 ]; then
+    echo "Should not be able to connect to Google" >&2
+    exit 1
+fi
 
 install -d -o "$LLM_USER" -g "$LLM_USER" -m 0700 \
         "$LLM_HOME_DIR/.persist/copilot"
