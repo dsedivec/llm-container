@@ -63,6 +63,7 @@ RUN dnf -y --refresh install \
     iputils \
     less \
     lsof \
+    netcat \
     # ping \
     procps-ng \
     ripgrep \
