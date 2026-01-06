@@ -29,9 +29,20 @@ fi
 
 echo "Detected Docker subnet: $docker_subnet (gateway: $gateway)"
 
+# Resolve Docker host IP (host.docker.internal) and allow it in nftables
+host_ip=""
+host_ip=$(getent ahostsv4 host.docker.internal | awk 'NR==1 { print $1 }' || true)
+if [ -z "$host_ip" ]; then
+    echo "ERROR: Could not resolve host.docker.internal" >&2
+    exit 1
+fi
+
+echo "Detected Docker host IP: $host_ip (host.docker.internal)"
+
 # Load nftables rules, then add the Docker subnet to the allowed set
 nft -f /root/rules.nft
 nft add element inet llm_egress allowed_ipv4 "{ $docker_subnet }"
+nft add element inet llm_egress allowed_ipv4 "{ $host_ip }"
 
 # Start tinyproxy
 /usr/sbin/tinyproxy -c /etc/tinyproxy/tinyproxy.conf

@@ -33,6 +33,8 @@ BASE_RUN_ARGS = [
     "1.1.1.1",
     "--dns",
     "9.9.9.9",
+    "--add-host",
+    "host.docker.internal:host-gateway",
     "-e",
     "HTTP_PROXY=http://127.0.0.1:8888",
     "-e",
