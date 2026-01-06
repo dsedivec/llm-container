@@ -22,3 +22,8 @@ Ensure `~/.local/bin` is on your PATH so the installed launcher is found.
 - Install dev dependencies: `uv sync --extra dev`
 - Install git hooks: `uv run pre-commit install`
 - Run the hooks manually: `uv run pre-commit run --all-files`
+
+## Docker image
+
+- Build the container image from repo root: `docker build -t llm llm`
+  - Optional: `--build-arg LLM_USER=llm --build-arg LLM_HOME_DIR=/home/llm` (defaults already match these values).
