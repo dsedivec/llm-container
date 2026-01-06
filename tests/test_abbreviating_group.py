@@ -52,6 +52,10 @@ def profile_create() -> None:
     click.echo("profile create executed")
 
 
+# Add "ls" as an alias for profile_list (same command, different name)
+profile.add_command(profile_list, name="ls")
+
+
 def test_exact_match() -> None:
     runner = CliRunner()
     result = runner.invoke(sample_cli, ["volume", "list"])
@@ -138,3 +142,12 @@ def test_ambiguous_subcommand() -> None:
     result = runner.invoke(sample_cli, ["volume", "a"])
     assert result.exit_code == 0
     assert "volume add executed" in result.output
+
+
+def test_alias_not_ambiguous() -> None:
+    runner = CliRunner()
+    # 'l' matches both 'list' and 'ls', but they are the same command
+    # so this should not be ambiguous
+    result = runner.invoke(sample_cli, ["profile", "l"])
+    assert result.exit_code == 0
+    assert "profile list executed" in result.output

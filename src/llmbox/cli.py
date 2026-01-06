@@ -46,6 +46,10 @@ class AbbreviatingGroup(click.Group):
         if len(matches) == 1:
             return matches[0], self.get_command(ctx, matches[0]), args[1:]
         elif len(matches) > 1:
+            # Check if all matches resolve to the same command (e.g., "list" and "ls" aliases)
+            unique_commands = {self.get_command(ctx, name) for name in matches}
+            if len(unique_commands) == 1:
+                return matches[0], self.get_command(ctx, matches[0]), args[1:]
             ctx.fail(f"Ambiguous command '{cmd_name}': could be {', '.join(sorted(matches))}")
 
         return super().resolve_command(ctx, args)
