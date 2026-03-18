@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 WORKSPACE_ROOT = Path("/home/llm/workspace")
+CONTAINER_HOME = Path("/home/llm")
 
 
 class VolumeError(ValueError):
@@ -31,6 +32,8 @@ def normalize_container_path(path: str | None, host: Path) -> Path:
     if not path:
         target = WORKSPACE_ROOT / host.name
     else:
+        if path.startswith("~"):
+            path = str(CONTAINER_HOME) + path[1:]
         container = Path(path)
         target = container if container.is_absolute() else WORKSPACE_ROOT / container
     return Path(os.path.normpath(target))

@@ -165,6 +165,26 @@ def test_global_volume_remove_by_number(tmp_path: Path, monkeypatch) -> None:
     assert list_result.output.strip() == ""
 
 
+def test_volume_add_tilde_in_container_path(tmp_path: Path, monkeypatch) -> None:
+    config_base = tmp_path / "config"
+    state_base = tmp_path / "state"
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(config_base))
+    monkeypatch.setenv("XDG_STATE_HOME", str(state_base))
+
+    host_path = tmp_path / ".claude"
+    host_path.mkdir()
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["volume", "add", "dev", f"{host_path}:~/.claude"])
+    assert result.exit_code == 0
+
+    profile_file = config_base / "llmbox" / "profiles" / "dev.yaml"
+    saved = yaml.safe_load(profile_file.read_text())
+    volume_spec = saved["volumes"][0]
+    _, container_part = volume_spec.split(":")
+    assert container_part == "/home/llm/.claude"
+
+
 def test_global_flag_without_profile(tmp_path: Path, monkeypatch) -> None:
     config_base = tmp_path / "config"
     state_base = tmp_path / "state"
