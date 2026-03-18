@@ -42,6 +42,12 @@ VOLUME ["$LLM_HOME_DIR/.persist"]
 
 USER root
 
+# Install 1Password CLI
+# https://developer.1password.com/docs/cli/get-started/
+RUN rpm --import https://downloads.1password.com/linux/keys/1password.asc && \
+    dnf -y install https://downloads.1password.com/linux/rpm/stable/$(uname -m)/1password-cli-latest.$(uname -m).rpm && \
+    dnf clean all
+
 RUN dnf -y --refresh install \
     # Packages taken from the Claude devcontainer
     # https://github.com/anthropics/claude-code/blob/main/.devcontainer/Dockerfile
