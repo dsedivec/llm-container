@@ -5,7 +5,7 @@ Helper CLI to manage llm sandbox containers and their profiles/volumes.
 ## Installation options
 
 - **uv tool install (recommended)**
-  `uv tool install . --force`
+  `uv tool install . --force --no-cache`
   Installs an isolated runtime and places an `llmbox` launcher in `~/.local/bin` (or your XDG bin). No venv activation needed.
 
 - **pipx**
