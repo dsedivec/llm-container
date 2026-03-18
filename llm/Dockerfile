@@ -33,7 +33,7 @@ USER $LLM_USER
 
 ENV NPM_CONFIG_PREFIX=$LLM_HOME_DIR/.local
 
-RUN npm install -g @anthropic-ai/claude-code@latest
+RUN curl -fsSL https://claude.ai/install.sh | bash
 RUN npm install -g @openai/codex
 RUN npm install -g @github/copilot
 
