@@ -40,8 +40,6 @@ RUN npm install -g @github/copilot
 RUN install -d -m 700 -o "$LLM_USER" -g "$LLM_USER" "$LLM_HOME_DIR/.persist"
 VOLUME ["$LLM_HOME_DIR/.persist"]
 
-RUN ln -s .persist/copilot "$LLM_HOME_DIR/.copilot"
-
 USER root
 
 RUN dnf -y --refresh install \

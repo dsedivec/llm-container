@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from llmbox.settings import Settings
+from llmbox.settings import GlobalConfig, Settings, load_config, save_config
 
 
 def test_settings_precedence(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -46,3 +46,33 @@ def test_state_migrates_last_profile(tmp_path: Path) -> None:
 
     state = load_state(state_dir)
     assert state.default_profile == "old"
+
+
+def test_global_config_with_volumes(tmp_path: Path) -> None:
+    config_dir = tmp_path / "llmbox"
+    config_dir.mkdir()
+    (config_dir / "config.yaml").write_text(
+        "image_name: llm\nvolumes:\n- ~/.claude:/home/llm/.claude\n"
+    )
+    config = load_config(config_dir)
+    assert config.volumes == ["~/.claude:/home/llm/.claude"]
+
+
+def test_save_and_load_config_roundtrip(tmp_path: Path) -> None:
+    config_dir = tmp_path / "llmbox"
+    config = GlobalConfig(
+        image_name="custom",
+        volumes=["/home/user/.claude:/home/llm/.claude"],
+    )
+    save_config(config_dir, config)
+    loaded = load_config(config_dir)
+    assert loaded.image_name == "custom"
+    assert loaded.volumes == ["/home/user/.claude:/home/llm/.claude"]
+
+
+def test_global_config_empty_volumes_default(tmp_path: Path) -> None:
+    config_dir = tmp_path / "llmbox"
+    config_dir.mkdir()
+    (config_dir / "config.yaml").write_text("image_name: llm\n")
+    config = load_config(config_dir)
+    assert config.volumes == []

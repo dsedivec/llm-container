@@ -41,10 +41,6 @@ BASE_RUN_ARGS = [
     "HTTPS_PROXY=http://127.0.0.1:8888",
     "-e",
     "NO_PROXY=localhost,127.0.0.1",
-    "-e",
-    "CLAUDE_CONFIG_DIR=/home/llm/.persist/claude",
-    "-e",
-    "CODEX_HOME=/home/llm/.persist/codex",
     "-v",
     "llm_persist:/home/llm/.persist",
 ]
@@ -57,6 +53,7 @@ def _timestamp() -> str:
 def build_run_command(
     image_name: str,
     profile: str,
+    global_volumes: Sequence[VolumeMount],
     volumes: Sequence[VolumeMount],
     extra_args: Sequence[str],
     config_dir: Path,
@@ -76,6 +73,9 @@ def build_run_command(
         f"llmbox.profile={profile}",
     ]
 
+    # Global volumes first (profile volumes come after and win on conflict)
+    for volume in global_volumes:
+        command.extend(["-v", volume.spec()])
     for volume in volumes:
         command.extend(["-v", volume.spec()])
 
@@ -88,12 +88,15 @@ def build_run_command(
 def run_container(
     image_name: str,
     profile: str,
+    global_volumes: Sequence[VolumeMount],
     volumes: Sequence[VolumeMount],
     extra_args: Sequence[str],
     config_dir: Path,
     runner=subprocess.run,
 ) -> tuple[str, list[str]]:
-    command, name = build_run_command(image_name, profile, volumes, extra_args, config_dir)
+    command, name = build_run_command(
+        image_name, profile, global_volumes, volumes, extra_args, config_dir
+    )
     runner(command, check=True)
     return name, command
 

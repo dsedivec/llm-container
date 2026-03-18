@@ -6,6 +6,7 @@ import yaml
 from click.testing import CliRunner
 
 from llmbox import cli
+from llmbox.settings import config_file_path
 
 
 def test_run_creates_default_profile(tmp_path: Path, monkeypatch) -> None:
@@ -20,7 +21,7 @@ def test_run_creates_default_profile(tmp_path: Path, monkeypatch) -> None:
 
     called = {}
 
-    def fake_run(image_name, profile, volumes, extra_args, config_dir):
+    def fake_run(image_name, profile, global_volumes, volumes, extra_args, config_dir):
         called.update(
             {
                 "image_name": image_name,
@@ -69,7 +70,7 @@ def test_run_reassigns_missing_default(tmp_path: Path, monkeypatch) -> None:
 
     called = {}
 
-    def fake_run(image_name, profile, volumes, extra_args, config_dir):
+    def fake_run(image_name, profile, global_volumes, volumes, extra_args, config_dir):
         called["profile"] = profile
         return "container", []
 
@@ -109,7 +110,10 @@ def test_run_does_not_change_default_when_running_other_profile(
     monkeypatch.setattr(
         cli,
         "run_container",
-        lambda image_name, profile, volumes, extra_args, config_dir: ("container", []),
+        lambda image_name, profile, global_volumes, volumes, extra_args, config_dir: (
+            "container",
+            [],
+        ),
     )
 
     result = runner.invoke(cli.cli, ["run", "alpha"], env=env)
@@ -118,3 +122,44 @@ def test_run_does_not_change_default_when_running_other_profile(
     state_file = state_base / "llmbox" / "state.yaml"
     state = yaml.safe_load(state_file.read_text())
     assert state["default_profile"] == "beta"
+
+
+def test_run_includes_global_volumes(tmp_path: Path, monkeypatch) -> None:
+    config_base = tmp_path / "config"
+    state_base = tmp_path / "state"
+    env = {
+        "XDG_CONFIG_HOME": str(config_base),
+        "XDG_STATE_HOME": str(state_base),
+    }
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(config_base))
+    monkeypatch.setenv("XDG_STATE_HOME", str(state_base))
+
+    runner = CliRunner()
+
+    # Create a profile first
+    runner.invoke(cli.cli, ["profile", "create", "dev"], env=env)
+
+    # Write global config with a volume
+    host_dir = tmp_path / "dotclaude"
+    host_dir.mkdir()
+    config_dir = config_base / "llmbox"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    config_file_path(config_dir).write_text(
+        f"image_name: llm\nvolumes:\n- {host_dir}:/home/llm/.claude\n"
+    )
+
+    called = {}
+
+    def fake_run(image_name, profile, global_volumes, volumes, extra_args, config_dir):
+        called["global_volumes"] = global_volumes
+        called["volumes"] = volumes
+        return "container", []
+
+    monkeypatch.setattr(cli, "run_container", fake_run)
+
+    result = runner.invoke(cli.cli, ["run", "dev"], env=env)
+    assert result.exit_code == 0
+    assert "Global volumes:" in result.output
+    assert len(called["global_volumes"]) == 1
+    assert called["global_volumes"][0].host == host_dir
+    assert str(called["global_volumes"][0].container) == "/home/llm/.claude"

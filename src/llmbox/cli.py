@@ -16,7 +16,7 @@ from .profiles import (
     resolve_profile_for_run,
     validate_profile_name,
 )
-from .settings import Settings, State, load_state, save_state
+from .settings import Settings, State, load_config, load_state, save_config, save_state
 from .volumes import VolumeMount, normalize_host_path, parse_mount_spec
 
 
@@ -129,11 +129,33 @@ def volume() -> None:
 
 
 @volume.command("add")
-@click.argument("profile")
-@click.argument("mount", nargs=-1, required=True)
+@click.argument("profile", required=False, default=None)
+@click.argument("mount", nargs=-1)
 @click.option("--force", is_flag=True, help="Allow host paths that do not exist yet.")
-def volume_add(profile: str, mount: tuple[str, ...], force: bool) -> None:
+@click.option("-g", "--global", "is_global", is_flag=True, help="Add to global volumes.")
+def volume_add(profile: str | None, mount: tuple[str, ...], force: bool, is_global: bool) -> None:
     settings = _load_settings({})
+
+    if is_global:
+        all_mounts = (profile, *mount) if profile else mount
+        if not all_mounts:
+            raise click.UsageError("Missing argument 'MOUNT'.")
+        config = load_config(settings.config_dir)
+        cwd = Path.cwd()
+        try:
+            for spec in all_mounts:
+                vm = parse_mount_spec(spec, cwd=cwd, allow_missing=force)
+                config.volumes.append(vm.spec())
+        except (FileNotFoundError, ValueError) as exc:
+            raise click.ClickException(str(exc)) from exc
+        save_config(settings.config_dir, config)
+        return
+
+    if profile is None:
+        raise click.UsageError("Missing argument 'PROFILE'.")
+    if not mount:
+        raise click.UsageError("Missing argument 'MOUNT'.")
+
     manager = ProfileManager(settings.config_dir)
     state = load_state(settings.state_dir)
     profile_name = _resolve_profile_arg(profile, manager, state)
@@ -157,9 +179,20 @@ def volume_add(profile: str, mount: tuple[str, ...], force: bool) -> None:
 
 
 @volume.command("list")
-@click.argument("profile")
-def volume_list(profile: str) -> None:
+@click.argument("profile", required=False, default=None)
+@click.option("-g", "--global", "is_global", is_flag=True, help="List global volumes.")
+def volume_list(profile: str | None, is_global: bool) -> None:
     settings = _load_settings({})
+
+    if is_global:
+        config = load_config(settings.config_dir)
+        for idx, spec in enumerate(config.volumes, start=1):
+            click.echo(f"{idx}. {spec}")
+        return
+
+    if profile is None:
+        raise click.UsageError("Missing argument 'PROFILE'.")
+
     manager = ProfileManager(settings.config_dir)
     state = load_state(settings.state_dir)
     profile_name = _resolve_profile_arg(profile, manager, state)
@@ -176,10 +209,32 @@ volume.add_command(volume_list, name="ls")
 
 
 @volume.command("remove")
-@click.argument("profile")
-@click.argument("mount", nargs=-1, required=True)
-def volume_remove(profile: str, mount: tuple[str, ...]) -> None:
+@click.argument("profile", required=False, default=None)
+@click.argument("mount", nargs=-1)
+@click.option("-g", "--global", "is_global", is_flag=True, help="Remove from global volumes.")
+def volume_remove(profile: str | None, mount: tuple[str, ...], is_global: bool) -> None:
     settings = _load_settings({})
+
+    if is_global:
+        all_targets = (profile, *mount) if profile else mount
+        if not all_targets:
+            raise click.UsageError("Missing argument 'MOUNT'.")
+        config = load_config(settings.config_dir)
+        cwd = Path.cwd()
+        # Convert string specs to VolumeMount for reuse of _delete_targets_from_volumes
+        vol_mounts = [
+            parse_mount_spec(s, cwd=Path.home(), allow_missing=True) for s in config.volumes
+        ]
+        updated = _delete_targets_from_volumes(vol_mounts, all_targets, cwd)
+        config.volumes = [v.spec() for v in updated]
+        save_config(settings.config_dir, config)
+        return
+
+    if profile is None:
+        raise click.UsageError("Missing argument 'PROFILE'.")
+    if not mount:
+        raise click.UsageError("Missing argument 'MOUNT'.")
+
     manager = ProfileManager(settings.config_dir)
     state = load_state(settings.state_dir)
     profile_name = _resolve_profile_arg(profile, manager, state)
@@ -398,13 +453,25 @@ def run(image_name: str | None, dry_run: bool, profile: str | None, args: tuple[
         data = manager.load(name)
     except (FileNotFoundError, ValueError) as exc:
         raise click.ClickException(str(exc)) from exc
+
+    config = load_config(settings.config_dir)
+    global_volumes = [
+        parse_mount_spec(s, cwd=Path.home(), allow_missing=True) for s in config.volumes
+    ]
+
     click.echo(f"Using profile {click.style(name, bold=True)}")
+    if global_volumes:
+        click.echo("Global volumes:")
+        for vol in global_volumes:
+            host = click.style(str(vol.host), fg="cyan")
+            container = click.style(str(vol.container), fg="green")
+            click.echo(f"  {host} -> {container}")
     if data.volumes:
         for vol in data.volumes:
             host = click.style(str(vol.host), fg="cyan")
             container = click.style(str(vol.container), fg="green")
             click.echo(f"  {host} -> {container}")
-    else:
+    if not global_volumes and not data.volumes:
         click.echo(click.style("Warning: profile has no volumes", fg="yellow", bold=True))
         time.sleep(1)
 
@@ -413,6 +480,7 @@ def run(image_name: str | None, dry_run: bool, profile: str | None, args: tuple[
     command_line, _ = build_run_command(
         settings.image_name,
         name,
+        global_volumes,
         data.volumes,
         list(args),
         settings.config_dir,
@@ -425,6 +493,7 @@ def run(image_name: str | None, dry_run: bool, profile: str | None, args: tuple[
     run_container(
         settings.image_name,
         name,
+        global_volumes,
         data.volumes,
         list(args),
         settings.config_dir,

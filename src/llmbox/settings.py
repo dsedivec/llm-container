@@ -31,6 +31,7 @@ def state_file_path(state_dir: Path) -> Path:
 
 class GlobalConfig(BaseModel):
     image_name: str = "llm"
+    volumes: list[str] = Field(default_factory=list)
 
     model_config = ConfigDict(extra="forbid")
 
@@ -97,19 +98,30 @@ class ConfigFileSource(PydanticBaseSettingsSource):
 
         data: dict[str, Any] = {"config_dir": config_dir, "state_dir": state_dir}
 
-        cfg_path = config_file_path(config_dir)
-        if cfg_path.exists():
-            loaded = yaml.safe_load(cfg_path.read_text()) or {}
-            if not isinstance(loaded, dict):
-                raise ValueError(f"Config file {cfg_path} must contain a mapping")
-            config = GlobalConfig.model_validate(loaded)
-            data.update(config.model_dump())
+        config = load_config(config_dir)
+        # Only feed Settings-relevant fields (volumes is GlobalConfig-only)
+        data.update({"image_name": config.image_name})
 
         return data
 
 
 def ensure_dir(path: Path) -> None:
     path.mkdir(parents=True, exist_ok=True)
+
+
+def load_config(config_dir: Path) -> GlobalConfig:
+    cfg_path = config_file_path(config_dir)
+    if not cfg_path.exists():
+        return GlobalConfig()
+    loaded = yaml.safe_load(cfg_path.read_text()) or {}
+    if not isinstance(loaded, dict):
+        raise ValueError(f"Config file {cfg_path} must contain a mapping")
+    return GlobalConfig.model_validate(loaded)
+
+
+def save_config(config_dir: Path, config: GlobalConfig) -> None:
+    ensure_dir(config_dir)
+    config_file_path(config_dir).write_text(yaml.safe_dump(config.model_dump(), sort_keys=True))
 
 
 def load_state(state_dir: Path) -> State:

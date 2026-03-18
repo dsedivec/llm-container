@@ -7,6 +7,7 @@ import yaml
 from click.testing import CliRunner
 
 from llmbox.cli import cli
+from llmbox.settings import config_file_path
 
 
 def test_volume_add_creates_profile(tmp_path: Path, monkeypatch) -> None:
@@ -94,3 +95,83 @@ def test_volume_add_preserves_symlinks_in_container_path(tmp_path: Path, monkeyp
     # If the bug was present, it would resolve to real_home
     assert container_part.startswith(str(link_home))
     assert not container_part.startswith(str(real_home))
+
+
+def test_global_volume_add_and_list(tmp_path: Path, monkeypatch) -> None:
+    config_base = tmp_path / "config"
+    state_base = tmp_path / "state"
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(config_base))
+    monkeypatch.setenv("XDG_STATE_HOME", str(state_base))
+
+    host_path = tmp_path / "dotclaude"
+    host_path.mkdir()
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["volume", "add", "--global", f"{host_path}:/home/llm/.claude"])
+    assert result.exit_code == 0
+
+    list_result = runner.invoke(cli, ["volume", "list", "--global"])
+    assert list_result.exit_code == 0
+    assert str(host_path) in list_result.output
+    assert "/home/llm/.claude" in list_result.output
+
+    # Verify config.yaml on disk
+    cfg = yaml.safe_load(config_file_path(config_base / "llmbox").read_text())
+    assert len(cfg["volumes"]) == 1
+
+
+def test_global_volume_remove(tmp_path: Path, monkeypatch) -> None:
+    config_base = tmp_path / "config"
+    state_base = tmp_path / "state"
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(config_base))
+    monkeypatch.setenv("XDG_STATE_HOME", str(state_base))
+
+    first = tmp_path / "first"
+    second = tmp_path / "second"
+    first.mkdir()
+    second.mkdir()
+
+    runner = CliRunner()
+    runner.invoke(
+        cli,
+        ["volume", "add", "--global", f"{first}:/home/llm/.first", f"{second}:/home/llm/.second"],
+    )
+
+    # Remove first by spec
+    result = runner.invoke(cli, ["volume", "remove", "--global", f"{first}:/home/llm/.first"])
+    assert result.exit_code == 0
+
+    list_result = runner.invoke(cli, ["volume", "list", "--global"])
+    assert str(first) not in list_result.output
+    assert str(second) in list_result.output
+
+
+def test_global_volume_remove_by_number(tmp_path: Path, monkeypatch) -> None:
+    config_base = tmp_path / "config"
+    state_base = tmp_path / "state"
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(config_base))
+    monkeypatch.setenv("XDG_STATE_HOME", str(state_base))
+
+    host = tmp_path / "repo"
+    host.mkdir()
+
+    runner = CliRunner()
+    runner.invoke(cli, ["volume", "add", "--global", f"{host}:/home/llm/.repo"])
+
+    result = runner.invoke(cli, ["volume", "remove", "--global", "1"])
+    assert result.exit_code == 0
+
+    list_result = runner.invoke(cli, ["volume", "list", "--global"])
+    assert list_result.output.strip() == ""
+
+
+def test_global_flag_without_profile(tmp_path: Path, monkeypatch) -> None:
+    config_base = tmp_path / "config"
+    state_base = tmp_path / "state"
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(config_base))
+    monkeypatch.setenv("XDG_STATE_HOME", str(state_base))
+
+    runner = CliRunner()
+    # list --global works without any profile argument
+    result = runner.invoke(cli, ["volume", "list", "--global"])
+    assert result.exit_code == 0
