@@ -8,7 +8,7 @@ from typing import Final
 __all__ = ["__version__", "version_with_commit"]
 
 # Keep this simple assignment so Hatch's regex version source can parse it.
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 VERSION: Final[str] = __version__
 
 
