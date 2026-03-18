@@ -4,6 +4,8 @@
 - Single-container setup: build from `llm/` and run via `run_container.sh`; no docker-compose or proxy sidecar.
 - Key files: `llm/Dockerfile` (installs Claude Code, nftables, tinyproxy), `llm/entrypoint.sh` (nftables + proxy bootstrap), `llm/rules.nft` (egress policy), `llm/tinyproxy.conf` (blocklist proxy), `llm/blocklist` (regexes), `llm/llm_sudoers` (restricted sudo).
 - Volumes: `claude_config` -> `/home/llm/.claude_persistent`, `codex_config` -> `/home/llm/.codex` for persisted settings.
+- Python CLI: `src/llmbox/` package, entry point `llmbox.cli:cli`. Manages profiles, volumes, proxy, and container runs via Click.
+- Tests in `tests/`; config in `pyproject.toml`.
 
 ## Build & Run
 - Build image: `docker build -t llm --build-arg LLM_USER=llm --build-arg LLM_HOME_DIR=/home/llm llm/`.
@@ -14,6 +16,14 @@
 - Default-allow via tinyproxy with blocklist filtering; direct IP CONNECTs blocked by regexes in `llm/blocklist`.
 - nftables (`llm/rules.nft`): drop-by-default; only `tinyproxy` UID may reach TCP 80/443; DNS allowed to public resolvers; private networks rejected; Docker subnet detected at runtime and added to `allowed_ipv4`.
 - `llm/entrypoint.sh` loads rules, inserts the detected subnet, starts tinyproxy, and drops privileges with `setpriv` to the unprivileged `LLM_USER`.
+
+## Python CLI Development
+- Package manager: `uv`; install dev deps with `uv sync --group dev`.
+- Run tests: `uv run pytest`.
+- Linting/formatting: `ruff` (line-length 100, py311), `black` (line-length 100), `basedpyright` for type-checking.
+- CLI uses Click with `AbbreviatingGroup` for prefix-matching commands; subcommands get `ls`/`rm` aliases via `add_command`.
+- Settings via pydantic-settings (`Settings`, `State`); profiles stored as YAML files under config dir.
+- `conftest.py` adds `src/` to `sys.path` so tests can import `llmbox` directly.
 
 ## Coding Style & Conventions
 - Shell: use `bash` with `set -euo pipefail` like `llm/entrypoint.sh`; keep logic small and comment only non-obvious steps.
