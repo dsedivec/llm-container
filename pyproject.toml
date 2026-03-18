@@ -16,7 +16,7 @@ dependencies = [
 dev = [
     "basedpyright>=1.17.0",
     "black>=24.3.0",
-    "pre-commit>=3.7.0",
+    "prek>=0.1.0",
     "ruff>=0.6.9",
     "pytest>=8.3.0",
 ]
@@ -25,7 +25,7 @@ dev = [
 dev = [
     "basedpyright>=1.17.0",
     "black>=24.3.0",
-    "pre-commit>=3.7.0",
+    "prek>=0.1.0",
     "ruff>=0.6.9",
     "pytest>=8.3.0",
 ]

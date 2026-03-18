@@ -20,8 +20,8 @@ Ensure `~/.local/bin` is on your PATH so the installed launcher is found.
 ## Development
 
 - Install dev dependencies: `uv sync --extra dev`
-- Install git hooks: `uv run pre-commit install`
-- Run the hooks manually: `uv run pre-commit run --all-files`
+- Install git hooks: `uv run prek install`
+- Run the hooks manually: `uv run prek run --all-files`
 
 ## Docker image
 
