@@ -69,6 +69,7 @@ RUN dnf -y --refresh install \
     tree \
     uv \
     vim-enhanced \
+    tmux \
     zoxide \
     && dnf clean all
 
@@ -76,6 +77,7 @@ COPY --chown=root:root --chmod=600 llm_sudoers /etc/sudoers.d/
 RUN sed -E -i "s/^llm\\s/$LLM_USER /" /etc/sudoers.d/llm_sudoers
 
 COPY --chown=root:root --chmod=0755 entrypoint.sh /
+COPY --chown=root:root --chmod=0755 update-agents.sh /
 COPY --chown=root:root --chmod=0600 rules.nft /root/
 
 # Copy tinyproxy configs

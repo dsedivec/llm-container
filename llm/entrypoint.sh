@@ -61,6 +61,11 @@ if [ "$result" -ne 7 ]; then
     exit 1
 fi
 
+# Update coding agents with tmux UI (blocking)
+if [ "${LLM_UPDATE_AGENTS:-1}" = "1" ]; then
+    runuser -u "$LLM_USER" -g "$LLM_USER" -- bash -lc '/update-agents.sh'
+fi
+
 (chown -hR "$LLM_USER:$LLM_USER" "$LLM_HOME_DIR" &)
 
 # runuser sets up the environment for us.  Otherwise we'd have to
