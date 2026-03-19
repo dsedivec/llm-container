@@ -56,6 +56,7 @@ RUN dnf -y --refresh install \
     man-db \
     man-pages \
     unzip \
+    zip \
     # nano \
     #
     # Other packages
