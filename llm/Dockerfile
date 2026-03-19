@@ -62,6 +62,7 @@ RUN dnf -y --refresh install \
     # Other packages
     bat \
     bind-utils \
+    diffutils \
     direnv \
     fd-find \
     fzf \
