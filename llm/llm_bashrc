@@ -5,6 +5,8 @@ if [ -f /etc/bashrc ]; then
     . /etc/bashrc
 fi
 
+PATH="$HOME/.local/bin:$PATH"
+
 HISTFILESIZE=1000000
 HISTSIZE=1000000
 HISTCONTROL=ignoredups:ignorespace
