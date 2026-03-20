@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Sequence
 
+from .settings import default_data_dir
 from .volumes import VolumeMount
 
 BASE_RUN_ARGS = [
@@ -52,13 +53,15 @@ def _resolve_persist_mount(persist_dir: str | None) -> str:
     """Return the -v spec for the persist mount.
 
     If *persist_dir* is a host path, expand ``~`` and ensure the directory
-    exists.  Otherwise fall back to the ``llm_persist`` Docker named volume.
+    exists.  Otherwise default to ``~/.local/share/llmbox/persist``
+    (via ``XDG_DATA_HOME``).
     """
     if persist_dir:
         host = Path(persist_dir).expanduser().resolve()
-        host.mkdir(parents=True, exist_ok=True)
-        return f"{host}:/home/llm/.persist"
-    return "llm_persist:/home/llm/.persist"
+    else:
+        host = default_data_dir() / "persist"
+    host.mkdir(parents=True, exist_ok=True)
+    return f"{host}:/home/llm/.persist"
 
 
 def build_run_command(
