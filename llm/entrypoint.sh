@@ -61,15 +61,16 @@ if [ "$result" -ne 7 ]; then
     exit 1
 fi
 
+(chown -hR "$LLM_USER:$LLM_USER" "$LLM_HOME_DIR" &)
+
+# Process LINKS.txt symlinks before updating agents so that persisted
+# configs (e.g. .bashrc, .claude.json) are in place first.
+runuser -u "$LLM_USER" -g "$LLM_USER" -- /process-links.sh
+
 # Update coding agents with tmux UI (blocking)
 if [ "${LLM_UPDATE_AGENTS:-1}" = "1" ]; then
     runuser -u "$LLM_USER" -g "$LLM_USER" -- bash -lc '/update-agents.sh'
 fi
-
-(chown -hR "$LLM_USER:$LLM_USER" "$LLM_HOME_DIR" &)
-
-# Process LINKS.txt symlinks
-runuser -u "$LLM_USER" -g "$LLM_USER" -- /process-links.sh
 
 # runuser sets up the environment for us.  Otherwise we'd have to
 # bootstrap stuff like HOME ourselves.
