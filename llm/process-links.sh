@@ -34,6 +34,13 @@ while IFS= read -r line || [ -n "$line" ]; do
     persist_path="$PERSIST_DIR/$line"
     home_path="$HOME/$line"
 
+    # Ensure .bash_history always exists in .persist so history is
+    # persisted from the very first session.
+    if [ "$line" = ".bash_history" ] && [ ! -e "$persist_path" ]; then
+        mkdir -p "$(dirname "$persist_path")"
+        touch "$persist_path"
+    fi
+
     # Skip if the file doesn't exist in .persist
     [ -e "$persist_path" ] || continue
 
