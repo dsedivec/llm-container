@@ -458,6 +458,7 @@ def run(image_name: str | None, dry_run: bool, profile: str | None, args: tuple[
     global_volumes = [
         parse_mount_spec(s, cwd=Path.home(), allow_missing=True) for s in config.volumes
     ]
+    persist_dir = data.persist_dir or config.persist_dir
 
     click.echo(f"Using profile {click.style(name, bold=True)}")
     if global_volumes:
@@ -484,6 +485,7 @@ def run(image_name: str | None, dry_run: bool, profile: str | None, args: tuple[
         data.volumes,
         list(args),
         settings.config_dir,
+        persist_dir=persist_dir,
     )
 
     if dry_run:
@@ -497,6 +499,66 @@ def run(image_name: str | None, dry_run: bool, profile: str | None, args: tuple[
         data.volumes,
         list(args),
         settings.config_dir,
+        persist_dir=persist_dir,
     )
     if new_default:
         save_state(settings.state_dir, State(default_profile=new_default))
+
+
+@cli.group(cls=AbbreviatingGroup)
+def config() -> None:
+    """Manage configuration settings."""
+
+
+@config.command("persist-dir")
+@click.argument("profile", required=False, default=None)
+@click.argument("path", required=False, default=None)
+@click.option("-g", "--global", "is_global", is_flag=True, help="Set/show global persist-dir.")
+@click.option("--clear", is_flag=True, help="Remove the persist-dir setting.")
+def config_persist_dir(profile: str | None, path: str | None, is_global: bool, clear: bool) -> None:
+    """Get or set the persist directory (host bind-mount for ~/.persist)."""
+    settings = _load_settings({})
+
+    if is_global:
+        cfg = load_config(settings.config_dir)
+        # --global with a positional treated as path (profile slot holds it)
+        effective_path = profile or path
+        if clear:
+            cfg.persist_dir = None
+            save_config(settings.config_dir, cfg)
+            click.echo("Cleared global persist-dir")
+            return
+        if effective_path:
+            cfg.persist_dir = effective_path
+            save_config(settings.config_dir, cfg)
+            click.echo(f"Global persist-dir set to {effective_path}")
+            return
+        # Show current
+        click.echo(cfg.persist_dir or "(not set)")
+        return
+
+    if profile is None:
+        raise click.UsageError("Missing argument 'PROFILE'.")
+
+    manager = ProfileManager(settings.config_dir)
+    state = load_state(settings.state_dir)
+    profile_name = _resolve_profile_arg(profile, manager, state)
+    try:
+        data = manager.load(profile_name)
+    except (FileNotFoundError, ValueError) as exc:
+        raise click.ClickException(str(exc)) from exc
+
+    if clear:
+        data.persist_dir = None
+        manager.save(profile_name, data)
+        click.echo(f"Cleared persist-dir for profile {profile_name}")
+        return
+
+    if path:
+        data.persist_dir = path
+        manager.save(profile_name, data)
+        click.echo(f"persist-dir for profile {profile_name} set to {path}")
+        return
+
+    # Show current value
+    click.echo(data.persist_dir or "(not set)")

@@ -41,13 +41,24 @@ BASE_RUN_ARGS = [
     "HTTPS_PROXY=http://127.0.0.1:8888",
     "-e",
     "NO_PROXY=localhost,127.0.0.1",
-    "-v",
-    "llm_persist:/home/llm/.persist",
 ]
 
 
 def _timestamp() -> str:
     return datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
+
+
+def _resolve_persist_mount(persist_dir: str | None) -> str:
+    """Return the -v spec for the persist mount.
+
+    If *persist_dir* is a host path, expand ``~`` and ensure the directory
+    exists.  Otherwise fall back to the ``llm_persist`` Docker named volume.
+    """
+    if persist_dir:
+        host = Path(persist_dir).expanduser().resolve()
+        host.mkdir(parents=True, exist_ok=True)
+        return f"{host}:/home/llm/.persist"
+    return "llm_persist:/home/llm/.persist"
 
 
 def build_run_command(
@@ -57,6 +68,7 @@ def build_run_command(
     volumes: Sequence[VolumeMount],
     extra_args: Sequence[str],
     config_dir: Path,
+    persist_dir: str | None = None,
 ) -> tuple[list[str], str]:
     name = f"llmbox-{profile}-{_timestamp()}"
     blocklist_path = config_dir / "proxy_blocklist"
@@ -71,6 +83,8 @@ def build_run_command(
         "llmbox.managed=true",
         "--label",
         f"llmbox.profile={profile}",
+        "-v",
+        _resolve_persist_mount(persist_dir),
     ]
 
     # Global volumes first (profile volumes come after and win on conflict)
@@ -92,10 +106,11 @@ def run_container(
     volumes: Sequence[VolumeMount],
     extra_args: Sequence[str],
     config_dir: Path,
+    persist_dir: str | None = None,
     runner=subprocess.run,
 ) -> tuple[str, list[str]]:
     command, name = build_run_command(
-        image_name, profile, global_volumes, volumes, extra_args, config_dir
+        image_name, profile, global_volumes, volumes, extra_args, config_dir, persist_dir
     )
     runner(command, check=True)
     return name, command

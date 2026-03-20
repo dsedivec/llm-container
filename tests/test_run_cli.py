@@ -21,7 +21,9 @@ def test_run_creates_default_profile(tmp_path: Path, monkeypatch) -> None:
 
     called = {}
 
-    def fake_run(image_name, profile, global_volumes, volumes, extra_args, config_dir):
+    def fake_run(
+        image_name, profile, global_volumes, volumes, extra_args, config_dir, persist_dir=None
+    ):
         called.update(
             {
                 "image_name": image_name,
@@ -29,6 +31,7 @@ def test_run_creates_default_profile(tmp_path: Path, monkeypatch) -> None:
                 "volumes": volumes,
                 "extra_args": extra_args,
                 "config_dir": config_dir,
+                "persist_dir": persist_dir,
             }
         )
         return "container", []
@@ -70,7 +73,9 @@ def test_run_reassigns_missing_default(tmp_path: Path, monkeypatch) -> None:
 
     called = {}
 
-    def fake_run(image_name, profile, global_volumes, volumes, extra_args, config_dir):
+    def fake_run(
+        image_name, profile, global_volumes, volumes, extra_args, config_dir, persist_dir=None
+    ):
         called["profile"] = profile
         return "container", []
 
@@ -110,7 +115,7 @@ def test_run_does_not_change_default_when_running_other_profile(
     monkeypatch.setattr(
         cli,
         "run_container",
-        lambda image_name, profile, global_volumes, volumes, extra_args, config_dir: (
+        lambda image_name, profile, global_volumes, volumes, extra_args, config_dir, persist_dir=None: (
             "container",
             [],
         ),
@@ -150,7 +155,9 @@ def test_run_includes_global_volumes(tmp_path: Path, monkeypatch) -> None:
 
     called = {}
 
-    def fake_run(image_name, profile, global_volumes, volumes, extra_args, config_dir):
+    def fake_run(
+        image_name, profile, global_volumes, volumes, extra_args, config_dir, persist_dir=None
+    ):
         called["global_volumes"] = global_volumes
         called["volumes"] = volumes
         return "container", []
@@ -163,3 +170,61 @@ def test_run_includes_global_volumes(tmp_path: Path, monkeypatch) -> None:
     assert len(called["global_volumes"]) == 1
     assert called["global_volumes"][0].host == host_dir
     assert str(called["global_volumes"][0].container) == "/home/llm/.claude"
+
+
+def test_run_passes_persist_dir_from_profile(tmp_path: Path, monkeypatch) -> None:
+    config_base = tmp_path / "config"
+    state_base = tmp_path / "state"
+    env = {
+        "XDG_CONFIG_HOME": str(config_base),
+        "XDG_STATE_HOME": str(state_base),
+    }
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(config_base))
+    monkeypatch.setenv("XDG_STATE_HOME", str(state_base))
+
+    runner = CliRunner()
+    runner.invoke(cli.cli, ["profile", "create", "dev"], env=env)
+
+    # Set persist_dir on the profile
+    persist = tmp_path / "my_persist"
+    runner.invoke(cli.cli, ["config", "persist-dir", "dev", str(persist)], env=env)
+
+    called = {}
+
+    def fake_run(
+        image_name, profile, global_volumes, volumes, extra_args, config_dir, persist_dir=None
+    ):
+        called["persist_dir"] = persist_dir
+        return "container", []
+
+    monkeypatch.setattr(cli, "run_container", fake_run)
+    result = runner.invoke(cli.cli, ["run", "dev"], env=env)
+    assert result.exit_code == 0
+    assert called["persist_dir"] == str(persist)
+
+
+def test_run_persist_dir_defaults_to_none(tmp_path: Path, monkeypatch) -> None:
+    config_base = tmp_path / "config"
+    state_base = tmp_path / "state"
+    env = {
+        "XDG_CONFIG_HOME": str(config_base),
+        "XDG_STATE_HOME": str(state_base),
+    }
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(config_base))
+    monkeypatch.setenv("XDG_STATE_HOME", str(state_base))
+
+    runner = CliRunner()
+    runner.invoke(cli.cli, ["profile", "create", "dev"], env=env)
+
+    called = {}
+
+    def fake_run(
+        image_name, profile, global_volumes, volumes, extra_args, config_dir, persist_dir=None
+    ):
+        called["persist_dir"] = persist_dir
+        return "container", []
+
+    monkeypatch.setattr(cli, "run_container", fake_run)
+    result = runner.invoke(cli.cli, ["run", "dev"], env=env)
+    assert result.exit_code == 0
+    assert called["persist_dir"] is None

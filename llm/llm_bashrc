@@ -1,6 +1,10 @@
 # -*- mode: sh; -*-
-HISTFILE=$HOME/.persist/bash_history
-install -d -m 0700 "$(dirname "$HISTFILE")"
+
+# Source system-wide defaults
+if [ -f /etc/bashrc ]; then
+    . /etc/bashrc
+fi
+
 HISTFILESIZE=1000000
 HISTSIZE=1000000
 HISTCONTROL=ignoredups:ignorespace

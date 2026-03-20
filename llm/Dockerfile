@@ -86,6 +86,7 @@ RUN sed -E -i "s/^llm\\s/$LLM_USER /" /etc/sudoers.d/llm_sudoers
 
 COPY --chown=root:root --chmod=0755 entrypoint.sh /
 COPY --chown=root:root --chmod=0755 update-agents.sh /
+COPY --chown=root:root --chmod=0755 process-links.sh /
 COPY --chown=root:root --chmod=0600 rules.nft /root/
 
 # Copy tinyproxy configs
@@ -95,8 +96,7 @@ COPY --chown=root:root --chmod=644 blocklist /etc/tinyproxy/blocklist
 RUN install -d -m 755 -o tinyproxy -g tinyproxy /var/log/tinyproxy && \
     install -m 644 -o tinyproxy -g tinyproxy /dev/null /var/log/tinyproxy/tinyproxy.log
 
-RUN install -d -m 755 -o "$LLM_USER" -g "$LLM_USER" "$LLM_HOME_DIR/.bashrc.d"
-COPY --chown=$LLM_USER:$LLM_USER --chmod=0600 llm_bashrc $LLM_HOME_DIR/.bashrc.d/50_persist_bashrc
+COPY --chown=$LLM_USER:$LLM_USER --chmod=0600 llm_bashrc $LLM_HOME_DIR/.bashrc
 
 # NOTE: Make sure you don't install this before running dnf commands,
 # or they're fail because you won't have a proxy available during build.

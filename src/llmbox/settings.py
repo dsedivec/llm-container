@@ -21,6 +21,11 @@ def default_state_dir() -> Path:
     return base / "llmbox"
 
 
+def default_data_dir() -> Path:
+    base = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share"))
+    return base / "llmbox"
+
+
 def config_file_path(config_dir: Path) -> Path:
     return config_dir / "config.yaml"
 
@@ -32,6 +37,7 @@ def state_file_path(state_dir: Path) -> Path:
 class GlobalConfig(BaseModel):
     image_name: str = "llm"
     volumes: list[str] = Field(default_factory=list)
+    persist_dir: str | None = None
 
     model_config = ConfigDict(extra="forbid")
 

@@ -15,6 +15,7 @@ PROFILE_PATTERN = re.compile(r"^[A-Za-z0-9._-]+$")
 
 class ProfileData(BaseModel):
     volumes: list[VolumeMount] = Field(default_factory=list)
+    persist_dir: str | None = None
 
     model_config = ConfigDict(extra="forbid")
 
